@@ -1,4 +1,4 @@
-<\!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pl">
 <head>
   <meta charset="UTF-8">
@@ -119,7 +119,6 @@
   map.on('click', async function(e) {
     const { lat, lng } = e.latlng;
 
-    // Marker
     if (marker) marker.remove();
     marker = L.circleMarker([lat, lng], {
       radius: 8, color: '#2b6cb0', fillColor: '#4299e1',
@@ -128,10 +127,10 @@
 
     tapHint.style.display = 'none';
     card.className = 'loading';
-    card.innerHTML = 'Pobieranie danych…';
+    card.innerHTML = 'Pobieranie danych\u2026';
 
     try {
-      const res = await fetch(`/dzialka?lat=${lat}&lon=${lng}`);
+      const res = await fetch('/dzialka?lat=' + lat + '&lon=' + lng);
       const d = await res.json();
 
       if (d.error) {
@@ -141,30 +140,29 @@
       }
 
       card.className = '';
-      card.innerHTML = `
-        <div style="width:100%">
-          ${field('Numer działki', d.ozn_dz, true)}
-          ${field('Właściciel', d.wlasc)}
-          ${field('Władający', d.wlad)}
-          ${field('Powierzchnia', d.pow_ewd ? d.pow_ewd + ' ha' : '—')}
-          ${d.obreby && d.obreby \!== '—' ? field('Obręb', d.obreby) : ''}
-          ${d.kw && d.kw \!== '—' && d.kw \!== 'null' ? field('Księga wieczysta', d.kw) : ''}
-          ${d.klasa && d.klasa \!== '—' ? field('Klasa użytku', d.klasa) : ''}
-        </div>
-      `;
+      card.innerHTML =
+        '<div style="width:100%">' +
+        field('Numer dzia\u0142ki', d.ozn_dz, true) +
+        field('W\u0142a\u015bciciel', d.wlasc) +
+        field('W\u0142adaj\u0105cy', d.wlad) +
+        field('Powierzchnia', d.pow_ewd ? d.pow_ewd + ' ha' : '\u2014') +
+        (d.obreby && d.obreby !== '\u2014' ? field('Obr\u0119b', d.obreby) : '') +
+        (d.kw && d.kw !== '\u2014' && d.kw !== 'null' ? field('Ksi\u0119ga wieczysta', d.kw) : '') +
+        (d.klasa && d.klasa !== '\u2014' ? field('Klasa u\u017cytku', d.klasa) : '') +
+        '</div>';
+
     } catch(err) {
       card.className = 'error';
-      card.innerHTML = 'Błąd połączenia. Spróbuj ponownie.';
+      card.innerHTML = 'B\u0142\u0105d po\u0142\u0105czenia. Spr\u00f3buj ponownie.';
     }
   });
 
-  function field(label, value, big = false) {
-    if (\!value || value === '—' || value === 'null') return '';
-    return `
-      <div class="field">
-        <div class="label">${label}</div>
-        <div class="value ${big ? 'big' : ''}">${value}</div>
-      </div>`;
+  function field(label, value, big) {
+    if (!value || value === '\u2014' || value === 'null') return '';
+    return '<div class="field">' +
+      '<div class="label">' + label + '</div>' +
+      '<div class="value' + (big ? ' big' : '') + '">' + value + '</div>' +
+      '</div>';
   }
 </script>
 </body>

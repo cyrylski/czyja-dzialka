@@ -197,10 +197,10 @@
         '<div style="width:100%">' +
         field('Numer dzia\u0142ki', d.ozn_dz, true) +
         field('W\u0142a\u015bciciel', d.wlasc) +
+        field('Zarz\u0105dca', d.pow_opis) +
+        (d.pow_syg ? field('Sygnatura powierzenia', d.pow_syg) : '') +
         field('Rodzaj zarz\u0105dzania', d.wlad) +
         field('Powierzchnia', d.pow_ewd ? d.pow_ewd + ' ha' : '\u2014') +
-        field('Powierzono', d.pow_opis) +
-        (d.pow_syg ? field('Sygnatura', d.pow_syg) : '') +
         bazaInfo +
         '</div>';
 

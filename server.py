@@ -99,10 +99,27 @@ def index():
 def debug_session():
     """Endpoint diagnostyczny — pokazuje stan sesji i dostępne serwisy."""
     cookies, svc_egib, svc_base = get_session()
+
+    # Pobierz surową odpowiedź mapState do debugowania
+    r = requests.get(
+        'https://sipmapy.geopoz.poznan.pl/sipportal/api/stateful/mapState',
+        params={'mapStateId': 'map'},
+        cookies=cookies,
+        headers=HEADERS,
+        timeout=10
+    )
+    try:
+        body = r.json()
+    except Exception:
+        body = r.text[:2000]
+
     return jsonify({
         'cookie_keys': list(cookies.keys()),
         'service_egib': svc_egib,
         'service_base': svc_base,
+        'mapstate_status': r.status_code,
+        'mapstate_keys': list(body.keys()) if isinstance(body, dict) else str(body)[:500],
+        'mapstate_sample': str(body)[:1000],
     })
 
 

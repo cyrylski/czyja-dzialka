@@ -112,6 +112,16 @@
     maxZoom: 20
   }).addTo(map);
 
+  // Warstwa obrysów działek z GEOPOZ (WMS, półprzezroczysta)
+  L.tileLayer.wms('https://wms2.geopoz.poznan.pl/geoserver/egib/ows', {
+    layers: 'dzialki_szraw_sql',
+    format: 'image/png',
+    transparent: true,
+    opacity: 0.45,
+    maxZoom: 20,
+    attribution: 'Ewidencja gruntów © GEOPOZ Poznań'
+  }).addTo(map);
+
   // Geolokalizacja przy starcie
   if (navigator.geolocation) {
     navigator.geolocation.getCurrentPosition(

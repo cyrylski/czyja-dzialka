@@ -2,7 +2,7 @@
 <html lang="pl">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Własność gruntów – Poznań</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <style>
@@ -105,12 +105,27 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-  const map = L.map('map', { zoomControl: true }).setView([52.4064, 16.9252], 13);
+  const map = L.map('map', { zoomControl: true, doubleClickZoom: true }).setView([52.4064, 16.9252], 13);
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap',
     maxZoom: 20
   }).addTo(map);
+
+  // Geolokalizacja przy starcie
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      function(pos) {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        map.setView([lat, lng], 16);
+      },
+      function() {
+        // Brak zgody lub błąd — zostaje domyślny widok Poznania
+      },
+      { timeout: 5000 }
+    );
+  }
 
   let marker = null;
   const card = document.getElementById('card');

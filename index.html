@@ -228,7 +228,7 @@
         field('Numer dzia\u0142ki', d.ozn_dz, true) +
         field('W\u0142a\u015bciciel', d.wlasc) +
         field('Zarz\u0105dca', d.pow_opis === 'brak informacji' && d.wlad === 'Wykonywanie zada\u0144 zarz\u0105dcy dr\u00f3g publicznych'
-          ? 'Prawdopodobnie Zarz\u0105d Dr\u00f3g Miejskich <span style="color:#555;font-size:12px">(brak informacji w danych GEOPOZu)</span>'
+          ? 'Prawdopodobnie Zarz\u0105d Dr\u00f3g Miejskich<br><span style="color:#555;font-size:12px">(brak informacji w danych GEOPOZu)</span>'
           : d.pow_opis) +
         (d.pow_syg ? field('Sygnatura powierzenia', d.pow_syg) : '') +
         field('Rodzaj zarz\u0105dzania', d.wlad) +

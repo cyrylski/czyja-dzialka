@@ -5,12 +5,8 @@ import os
 
 app = Flask(__name__, static_folder='.')
 
-# Stan sesji — cookies + ID serwisów mapowych
-SESSION = {
-    'cookies': {},
-    'service_egib': None,   # ID serwisu z działkami (WLASC/WLAD)
-    'service_base': None,   # ID serwisu z podstawowymi danymi działek
-}
+# Stan sesji
+SESSION = {'cookies': {}}
 
 HEADERS = {
     'content-type': 'application/json',
@@ -19,15 +15,18 @@ HEADERS = {
     'origin': 'https://sipmapy.geopoz.poznan.pl',
 }
 
+# ID serwisów są stałe — wbudowane w JS strony sipportal
+SERVICE_BASE = '75946dc1-b0ce-4264-b26a-02db99542ac4'   # dzialki (podstawowe dane)
+SERVICE_EGIB = '447df96f-b25e-41e4-a7dc-b440526e92fa'   # dzialki_szraw_sql (WLASC/WLAD)
+
 
 def init_session():
-    """Inicjuje sesję i pobiera aktualne ID serwisów mapowych."""
+    """Inicjuje sesję GEOPOZ — pobiera ASP.NET_SessionId i csrfCookie."""
     uid = str(uuid.uuid4())
     cookies = {
         '__wc_user_name': uid,
         'GPZ_cookie': '{"GPZ_cookie_consent":"yes","lang":"pl"}'
     }
-
     # Krok 1: checkSession — dostajemy ASP.NET_SessionId
     r = requests.get(
         'https://sipmapy.geopoz.poznan.pl/sipportal/SessionManager.WebClient.ashx',
@@ -38,49 +37,26 @@ def init_session():
     )
     for k, v in r.cookies.items():
         cookies[k] = v
-    print(f"[SESSION] cookies: {list(cookies.keys())}")
-
-    # Krok 2: pobierz konfigurację mapy — zawiera aktualne mapServiceId
+    print(f"[SESSION] po checkSession: {list(cookies.keys())}")
+    # Krok 2: pobierz stronę główną — ustawia __wc_csrfCookie
     r2 = requests.get(
-        'https://sipmapy.geopoz.poznan.pl/sipportal/api/stateful/mapState',
-        params={'mapStateId': 'map'},
+        'https://sipmapy.geopoz.poznan.pl/sipportal/',
         cookies=cookies,
-        headers=HEADERS,
-        timeout=10
+        headers={'user-agent': HEADERS['user-agent']},
+        timeout=10,
+        allow_redirects=True
     )
-    print(f"[SESSION] mapState status: {r2.status_code}")
-
-    service_egib = None
-    service_base = None
-
-    if r2.status_code == 200:
-        try:
-            state = r2.json()
-            # Szukamy serwisów zawierających dzialki_szraw_sql i dzialki
-            services = state.get('mapServices', [])
-            for svc in services:
-                svc_id = svc.get('id', '')
-                layers = [l.get('id', '') for l in svc.get('layers', [])]
-                print(f"[SESSION] service {svc_id}: layers={layers}")
-                if 'dzialki_szraw_sql' in layers:
-                    service_egib = svc_id
-                if 'dzialki' in layers and 'dzialki_szraw_sql' not in layers:
-                    service_base = svc_id
-        except Exception as e:
-            print(f"[SESSION] mapState parse error: {e}")
-            print(f"[SESSION] mapState body: {r2.text[:1000]}")
-
+    for k, v in r2.cookies.items():
+        cookies[k] = v
+    print(f"[SESSION] po stronie glownej: {list(cookies.keys())}")
     SESSION['cookies'] = cookies
-    SESSION['service_egib'] = service_egib
-    SESSION['service_base'] = service_base
-    print(f"[SESSION] service_egib={service_egib}, service_base={service_base}")
-    return cookies, service_egib, service_base
+    return cookies
 
 
 def get_session():
     if not SESSION['cookies']:
         init_session()
-    return SESSION['cookies'], SESSION['service_egib'], SESSION['service_base']
+    return SESSION['cookies']
 
 
 def coords_to_epsg2177(lon, lat):
@@ -97,29 +73,11 @@ def index():
 
 @app.route('/debug-session')
 def debug_session():
-    """Endpoint diagnostyczny — pokazuje stan sesji i dostępne serwisy."""
-    cookies, svc_egib, svc_base = get_session()
-
-    # Pobierz surową odpowiedź mapState do debugowania
-    r = requests.get(
-        'https://sipmapy.geopoz.poznan.pl/sipportal/api/stateful/mapState',
-        params={'mapStateId': 'map'},
-        cookies=cookies,
-        headers=HEADERS,
-        timeout=10
-    )
-    try:
-        body = r.json()
-    except Exception:
-        body = r.text[:2000]
-
+    cookies = get_session()
     return jsonify({
         'cookie_keys': list(cookies.keys()),
-        'service_egib': svc_egib,
-        'service_base': svc_base,
-        'mapstate_status': r.status_code,
-        'mapstate_keys': list(body.keys()) if isinstance(body, dict) else str(body)[:500],
-        'mapstate_sample': str(body)[:1000],
+        'service_base': SERVICE_BASE,
+        'service_egib': SERVICE_EGIB,
     })
 
 
@@ -144,28 +102,21 @@ def dzialka():
     j = int((north_max - northing) / (north_max - north_min) * height)
     bbox = [north_min, east_min, north_max, east_max]
 
-    cookies, service_egib, service_base = get_session()
-
-    # Buduj listę items tylko z dostępnymi serwisami
-    items_list = []
-    if service_base:
-        items_list.append({
-            "mapServiceId": service_base,
-            "itemDefinitionIds": ["dzialki"],
-            "additionalData": {"imageFormat": "image/png", "forceInfoFormat": False, "vspm": "{}"}
-        })
-    if service_egib:
-        items_list.append({
-            "mapServiceId": service_egib,
-            "itemDefinitionIds": ["dzialki_szraw_sql"],
-            "additionalData": {"imageFormat": "image/png", "forceInfoFormat": False, "vspm": "{}"}
-        })
-
-    if not items_list:
-        return jsonify({'error': 'Nie udało się pobrać konfiguracji serwisów GEOPOZ'}), 503
+    cookies = get_session()
 
     payload = {
-        "items": items_list,
+        "items": [
+            {
+                "mapServiceId": SERVICE_BASE,
+                "itemDefinitionIds": ["dzialki"],
+                "additionalData": {"imageFormat": "image/png", "forceInfoFormat": False, "vspm": "{}"}
+            },
+            {
+                "mapServiceId": SERVICE_EGIB,
+                "itemDefinitionIds": ["dzialki_szraw_sql"],
+                "additionalData": {"imageFormat": "image/png", "forceInfoFormat": False, "vspm": "{}"}
+            }
+        ],
         "i": i,
         "j": j,
         "crsId": "EPSG:2177",
@@ -187,8 +138,8 @@ def dzialka():
     if r.status_code != 200:
         print(f"[ERROR] featureInfo status: {r.status_code}, body: {r.text[:500]}")
         # Spróbuj odświeżyć sesję i ponów
-        SESSION['cookies'] = {}
-        return jsonify({'error': f'Błąd GEOPOZ ({r.status_code}). Odśwież stronę i spróbuj ponownie.'}), 502
+        SESSION['cookies'] = {}  # reset sesji przy następnym zapytaniu
+        return jsonify({'error': f'Blad GEOPOZ ({r.status_code}). Odswież stronę i spróbuj ponownie.'}), 502
 
     try:
         data = r.json()

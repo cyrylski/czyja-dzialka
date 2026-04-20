@@ -104,7 +104,7 @@ def dzialka():
         timeout=15
     )
 
-    if r.status_code \!= 200:
+    if r.status_code != 200:
         return jsonify({'error': f'GEOPOZ zwrócił {r.status_code}'}), 502
 
     items = r.json()

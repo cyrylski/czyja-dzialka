@@ -1,11 +1,74 @@
 from flask import Flask, request, jsonify, send_from_directory
 import requests
 import os
+import glob
+import re
+from datetime import datetime
 
 app = Flask(__name__, static_folder='.')
 
 GEOSERVER = 'https://wms2.geopoz.poznan.pl/geoserver/egib/ows'
 
+# --- Powierzenia ---
+
+def find_powierzenia_file():
+    """Znajdź plik powierzenia-*.xlsx w katalogu aplikacji."""
+    base = os.path.dirname(os.path.abspath(__file__))
+    files = glob.glob(os.path.join(base, 'powierzenia-*.xlsx'))
+    if not files:
+        return None, None
+    # Wybierz najnowszy plik
+    files.sort(reverse=True)
+    filepath = files[0]
+    # Wyciągnij datę z nazwy pliku (powierzenia-YYYY-MM-DD.xlsx)
+    m = re.search(r'powierzenia-(\d{4}-\d{2}-\d{2})\.xlsx', os.path.basename(filepath))
+    date_str = m.group(1) if m else None
+    return filepath, date_str
+
+
+def load_powierzenia():
+    """Wczytaj plik XLSX do słownika {OZN_DZ: {opis, sygnatura}}."""
+    filepath, date_str = find_powierzenia_file()
+    if not filepath:
+        print("[POWIERZENIA] Brak pliku powierzenia-*.xlsx")
+        return {}, None
+    try:
+        import openpyxl
+        wb = openpyxl.load_workbook(filepath, read_only=True, data_only=True)
+        ws = wb.active
+        rows = list(ws.iter_rows(values_only=True))
+        # Pierwsza kolumna: nagłówki
+        if not rows:
+            return {}, date_str
+        header = [str(c).strip() if c else '' for c in rows[0]]
+        try:
+            idx_ozn  = header.index('OZN_DZ')
+            idx_opis = header.index('OPIS')
+            idx_syg  = header.index('SYGNATURA')
+        except ValueError as e:
+            print(f"[POWIERZENIA] Brak kolumny: {e}")
+            return {}, date_str
+        data = {}
+        for row in rows[1:]:
+            ozn = str(row[idx_ozn]).strip() if row[idx_ozn] else None
+            if not ozn or ozn == 'None':
+                continue
+            data[ozn] = {
+                'opis':      str(row[idx_opis]).strip() if row[idx_opis] else '',
+                'sygnatura': str(row[idx_syg]).strip()  if row[idx_syg]  else '',
+            }
+        print(f"[POWIERZENIA] Wczytano {len(data)} rekordów z {os.path.basename(filepath)}")
+        return data, date_str
+    except Exception as e:
+        print(f"[POWIERZENIA] Blad wczytywania: {e}")
+        return {}, date_str
+
+
+# Wczytaj przy starcie
+POWIERZENIA, POWIERZENIA_DATA = load_powierzenia()
+
+
+# --- Helpers ---
 
 def coords_to_epsg2177(lon, lat):
     from pyproj import Transformer
@@ -13,6 +76,8 @@ def coords_to_epsg2177(lon, lat):
     easting, northing = t.transform(lon, lat)
     return easting, northing
 
+
+# --- Routes ---
 
 @app.route('/')
 def index():
@@ -73,13 +138,28 @@ def dzialka():
         return jsonify({'error': 'Nie znaleziono dzialki w tym miejscu'})
 
     p = features[0]['properties']
+    ozn_dz = p.get('OZN_DZ', '')
+
+    # Lookup powierzenia
+    pow_info = POWIERZENIA.get(ozn_dz)
+    if pow_info:
+        pow_opis = pow_info['opis']
+        pow_syg  = pow_info['sygnatura']
+    else:
+        pow_opis = 'brak informacji'
+        pow_syg  = ''
+
     return jsonify({
-        'ozn_dz':  p.get('OZN_DZ', '\u2014'),
-        'nrd':     p.get('NRD', '\u2014'),
-        'wlasc':   (p.get('WLASC') or '').strip().rstrip(',') or '\u2014',
-        'wlad':    (p.get('WLAD') or '').strip().lstrip('- ').rstrip(',') or '\u2014',
-        'pow_ewd': str(p.get('POW_EWD', '\u2014')),
-        'adres':   p.get('ADRES_DZIALKI', '\u2014'),
+        'ozn_dz':       ozn_dz or '\u2014',
+        'nrd':          p.get('NRD', '\u2014'),
+        'wlasc':        (p.get('WLASC') or '').strip().rstrip(',') or '\u2014',
+        'wlad':         (p.get('WLAD') or '').strip().lstrip('- ').rstrip(',') or '\u2014',
+        'pow_ewd':      str(p.get('POW_EWD', '\u2014')),
+        'adres':        p.get('ADRES_DZIALKI', '\u2014'),
+        'pow_opis':     pow_opis,
+        'pow_syg':      pow_syg,
+        'baza_data':    POWIERZENIA_DATA or '',
+        'baza_liczba':  len(POWIERZENIA),
     })
 
 

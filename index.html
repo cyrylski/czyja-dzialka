@@ -178,6 +178,10 @@
         return;
       }
 
+      const bazaInfo = d.baza_data
+        ? '<div style="text-align:right;font-size:11px;color:#bbb;margin-top:12px">Baza powierze\u0144: ' + d.baza_data + ' (' + d.baza_liczba + ' rekord\u00f3w)</div>'
+        : '';
+
       card.className = '';
       card.innerHTML =
         '<div style="width:100%">' +
@@ -185,9 +189,9 @@
         field('W\u0142a\u015bciciel', d.wlasc) +
         field('Rodzaj zarz\u0105dzania', d.wlad) +
         field('Powierzchnia', d.pow_ewd ? d.pow_ewd + ' ha' : '\u2014') +
-        (d.obreby && d.obreby !== '\u2014' ? field('Obr\u0119b', d.obreby) : '') +
-        (d.kw && d.kw !== '\u2014' && d.kw !== 'null' ? field('Ksi\u0119ga wieczysta', d.kw) : '') +
-        (d.klasa && d.klasa !== '\u2014' ? field('Klasa u\u017cytku', d.klasa) : '') +
+        field('Powierzono', d.pow_opis) +
+        (d.pow_syg ? field('Sygnatura', d.pow_syg) : '') +
+        bazaInfo +
         '</div>';
 
     } catch(err) {

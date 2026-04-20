@@ -49,6 +49,20 @@ def init_session():
     for k, v in r2.cookies.items():
         cookies[k] = v
     print(f"[SESSION] po stronie glownej: {list(cookies.keys())}")
+
+    # Krok 3: zainicjuj serwisy mapowe w kontekście sesji (wymagane przed featureInfo)
+    for svc_id in [SERVICE_BASE, SERVICE_EGIB]:
+        ri = requests.get(
+            'https://sipmapy.geopoz.poznan.pl/sipportal/MapServiceManager.WebClient.ashx',
+            params={'action': 'init', 'id': svc_id},
+            cookies=cookies,
+            headers={'user-agent': HEADERS['user-agent'], 'referer': 'https://sipmapy.geopoz.poznan.pl/sipportal/'},
+            timeout=10
+        )
+        for k, v in ri.cookies.items():
+            cookies[k] = v
+        print(f"[SESSION] init {svc_id}: {ri.status_code}")
+
     SESSION['cookies'] = cookies
     return cookies
 

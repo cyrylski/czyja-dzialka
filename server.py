@@ -48,7 +48,7 @@ def dzialka():
         'INFO_FORMAT': 'application/json',
         'FEATURE_COUNT': '5',
         'CRS': 'EPSG:2177',
-        'BBOX': f'{east_min},{north_min},{east_max},{north_max}',
+        'BBOX': f'{north_min},{east_min},{north_max},{east_max}',
         'WIDTH': width,
         'HEIGHT': height,
         'I': i,

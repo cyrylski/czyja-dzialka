@@ -159,7 +159,7 @@ def dzialka():
                 'REQUEST':      'GetFeature',
                 'TYPENAMES':    'dzialki_szraw_sql',
                 'OUTPUTFORMAT': 'application/json',
-                'SRSNAME':      'EPSG:4326',
+                'SRSNAME':      'CRS:84',
                 'CQL_FILTER':   f"OZN_DZ='{ozn_dz}'",
             }
             wfs_r = requests.get(GEOSERVER, params=wfs_params, timeout=15)

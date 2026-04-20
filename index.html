@@ -154,6 +154,8 @@
   const card = document.getElementById('card');
   const tapHint = document.getElementById('tap-hint');
 
+  let requestToken = 0;
+
   // Rozróżnienie single tap od double tap
   let clickTimer = null;
 
@@ -180,6 +182,7 @@
 
   async function handleSingleClick(e) {
     const { lat, lng } = e.latlng;
+    const myToken = ++requestToken;
 
     if (parcelLayer) { parcelLayer.remove(); parcelLayer = null; }
     if (marker) { marker.remove(); marker = null; }
@@ -190,6 +193,7 @@
 
     try {
       const res = await fetch('/dzialka?lat=' + lat + '&lon=' + lng);
+      if (myToken !== requestToken) return;
       const d = await res.json();
 
       if (d.error) {
@@ -231,6 +235,7 @@
         '</div>';
 
     } catch(err) {
+      if (myToken !== requestToken) return;
       card.className = 'error';
       card.innerHTML = 'B\u0142\u0105d po\u0142\u0105czenia. Spr\u00f3buj ponownie.';
     }

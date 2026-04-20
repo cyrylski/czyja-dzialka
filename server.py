@@ -149,7 +149,29 @@ def dzialka():
         pow_opis = 'brak informacji'
         pow_syg  = ''
 
-    return jsonify({
+    # WFS — pobierz geometrię działki
+    geometry = None
+    if ozn_dz:
+        try:
+            wfs_params = {
+                'SERVICE':      'WFS',
+                'VERSION':      '2.0.0',
+                'REQUEST':      'GetFeature',
+                'TYPENAMES':    'dzialki_szraw_sql',
+                'OUTPUTFORMAT': 'application/json',
+                'SRSNAME':      'EPSG:4326',
+                'CQL_FILTER':   f"OZN_DZ='{ozn_dz}'",
+            }
+            wfs_r = requests.get(GEOSERVER, params=wfs_params, timeout=15)
+            if wfs_r.status_code == 200:
+                wfs_data = wfs_r.json()
+                wfs_features = wfs_data.get('features', [])
+                if wfs_features:
+                    geometry = wfs_features[0].get('geometry')
+        except Exception:
+            pass
+
+    result = {
         'ozn_dz':       ozn_dz or '\u2014',
         'nrd':          p.get('NRD', '\u2014'),
         'wlasc':        (p.get('WLASC') or '').strip().rstrip(',') or '\u2014',
@@ -160,7 +182,10 @@ def dzialka():
         'pow_syg':      pow_syg,
         'baza_data':    POWIERZENIA_DATA or '',
         'baza_liczba':  len(POWIERZENIA),
-    })
+    }
+    if geometry:
+        result['geometry'] = geometry
+    return jsonify(result)
 
 
 if __name__ == '__main__':

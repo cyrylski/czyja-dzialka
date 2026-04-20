@@ -105,9 +105,17 @@ def dzialka():
     )
 
     if r.status_code != 200:
-        return jsonify({'error': f'GEOPOZ zwrócił {r.status_code}'}), 502
+        print(f"[ERROR] GEOPOZ status: {r.status_code}")
+        print(f"[ERROR] Response body: {r.text[:500]}")
+        return jsonify({'error': f'GEOPOZ zwrócił {r.status_code}: {r.text[:200]}'}), 502
 
-    items = r.json()
+    try:
+        items = r.json()
+    except Exception as e:
+        print(f"[ERROR] JSON parse failed: {e}")
+        print(f"[ERROR] Raw response: {r.text[:500]}")
+        return jsonify({'error': f'Nieprawidłowa odpowiedź GEOPOZ: {r.text[:200]}'}), 502
+
     result = parse_feature_info(items)
     return jsonify(result)
 

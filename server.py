@@ -149,27 +149,28 @@ def dzialka():
         pow_opis = 'brak informacji'
         pow_syg  = ''
 
-    # WFS — pobierz geometrię działki
+    # WFS — pobierz geometrię działki przez przecięcie z punktem kliknięcia.
+    # Używamy SRID=4326;POINT w EWKT, bo CQL_FILTER domyślnie przyjmuje CRS warstwy (EPSG:2177).
     geometry = None
-    if ozn_dz:
-        try:
-            wfs_params = {
-                'SERVICE':      'WFS',
-                'VERSION':      '2.0.0',
-                'REQUEST':      'GetFeature',
-                'TYPENAMES':    'dzialki_szraw_sql',
-                'OUTPUTFORMAT': 'application/json',
-                'SRSNAME':      'CRS:84',
-                'CQL_FILTER':   f"OZN_DZ='{ozn_dz}'",
-            }
-            wfs_r = requests.get(GEOSERVER, params=wfs_params, timeout=15)
-            if wfs_r.status_code == 200:
-                wfs_data = wfs_r.json()
-                wfs_features = wfs_data.get('features', [])
-                if wfs_features:
-                    geometry = wfs_features[0].get('geometry')
-        except Exception:
-            pass
+    try:
+        wfs_params = {
+            'SERVICE':      'WFS',
+            'VERSION':      '2.0.0',
+            'REQUEST':      'GetFeature',
+            'TYPENAMES':    'egib:dzialki_ewidencyjne_sql',
+            'OUTPUTFORMAT': 'application/json',
+            'SRSNAME':      'CRS:84',
+            'CQL_FILTER':   f'INTERSECTS(SHAPE,SRID=4326;POINT({lon} {lat}))',
+            'COUNT':        '1',
+        }
+        wfs_r = requests.get(GEOSERVER, params=wfs_params, timeout=15)
+        if wfs_r.status_code == 200:
+            wfs_data = wfs_r.json()
+            wfs_features = wfs_data.get('features', [])
+            if wfs_features:
+                geometry = wfs_features[0].get('geometry')
+    except Exception as e:
+        print(f"[WFS] exception: {e}")
 
     result = {
         'ozn_dz':       ozn_dz or '\u2014',

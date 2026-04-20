@@ -131,7 +131,31 @@
   const card = document.getElementById('card');
   const tapHint = document.getElementById('tap-hint');
 
+  // Rozróżnienie single tap od double tap
+  let clickTimer = null;
+
   map.on('click', async function(e) {
+    if (clickTimer) {
+      // Drugi klik przyszedł szybko — to double click, anuluj single
+      clearTimeout(clickTimer);
+      clickTimer = null;
+      return;
+    }
+    clickTimer = setTimeout(async function() {
+      clickTimer = null;
+      await handleSingleClick(e);
+    }, 250);
+  });
+
+  map.on('dblclick', function(e) {
+    if (clickTimer) {
+      clearTimeout(clickTimer);
+      clickTimer = null;
+    }
+    map.zoomIn();
+  });
+
+  async function handleSingleClick(e) {
     const { lat, lng } = e.latlng;
 
     if (marker) marker.remove();
@@ -170,7 +194,7 @@
       card.className = 'error';
       card.innerHTML = 'B\u0142\u0105d po\u0142\u0105czenia. Spr\u00f3buj ponownie.';
     }
-  });
+  }
 
   function field(label, value, big) {
     if (!value || value === '\u2014' || value === 'null') return '';

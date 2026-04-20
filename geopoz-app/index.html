@@ -1,0 +1,171 @@
+<\!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Własność gruntów – Poznań</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; }
+
+    #map { width: 100%; height: 60vh; min-height: 300px; }
+
+    #panel {
+      padding: 16px;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 18px;
+      font-weight: 700;
+      color: #1a1a2e;
+      margin-bottom: 4px;
+    }
+    .subtitle {
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 16px;
+    }
+
+    #card {
+      background: white;
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      min-height: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #card.loading { color: #888; font-size: 14px; }
+    #card.error   { color: #e53e3e; font-size: 14px; }
+
+    .field { margin-bottom: 12px; }
+    .field:last-child { margin-bottom: 0; }
+    .label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #999;
+      margin-bottom: 2px;
+    }
+    .value {
+      font-size: 15px;
+      color: #1a1a2e;
+      line-height: 1.4;
+    }
+    .value.big {
+      font-size: 18px;
+      font-weight: 700;
+      color: #2b6cb0;
+    }
+
+    .hint {
+      font-size: 13px;
+      color: #888;
+      text-align: center;
+    }
+
+    .tap-hint {
+      position: absolute;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.6);
+      color: white;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 13px;
+      pointer-events: none;
+      white-space: nowrap;
+      z-index: 1000;
+    }
+
+    #map-wrap { position: relative; }
+  </style>
+</head>
+<body>
+
+<div id="map-wrap">
+  <div id="map"></div>
+  <div class="tap-hint" id="tap-hint">Dotknij mapę, aby sprawdzić działkę</div>
+</div>
+
+<div id="panel">
+  <h1>Własność gruntów</h1>
+  <p class="subtitle">Dane ewidencyjne GEOPOZ Poznań</p>
+  <div id="card">
+    <span class="hint">Dotknij dowolnego miejsca na mapie</span>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  const map = L.map('map', { zoomControl: true }).setView([52.4064, 16.9252], 13);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap',
+    maxZoom: 20
+  }).addTo(map);
+
+  let marker = null;
+  const card = document.getElementById('card');
+  const tapHint = document.getElementById('tap-hint');
+
+  map.on('click', async function(e) {
+    const { lat, lng } = e.latlng;
+
+    // Marker
+    if (marker) marker.remove();
+    marker = L.circleMarker([lat, lng], {
+      radius: 8, color: '#2b6cb0', fillColor: '#4299e1',
+      fillOpacity: 0.9, weight: 2
+    }).addTo(map);
+
+    tapHint.style.display = 'none';
+    card.className = 'loading';
+    card.innerHTML = 'Pobieranie danych…';
+
+    try {
+      const res = await fetch(`/dzialka?lat=${lat}&lon=${lng}`);
+      const d = await res.json();
+
+      if (d.error) {
+        card.className = 'error';
+        card.innerHTML = d.error;
+        return;
+      }
+
+      card.className = '';
+      card.innerHTML = `
+        <div style="width:100%">
+          ${field('Numer działki', d.ozn_dz, true)}
+          ${field('Właściciel', d.wlasc)}
+          ${field('Władający', d.wlad)}
+          ${field('Powierzchnia', d.pow_ewd ? d.pow_ewd + ' ha' : '—')}
+          ${d.obreby && d.obreby \!== '—' ? field('Obręb', d.obreby) : ''}
+          ${d.kw && d.kw \!== '—' && d.kw \!== 'null' ? field('Księga wieczysta', d.kw) : ''}
+          ${d.klasa && d.klasa \!== '—' ? field('Klasa użytku', d.klasa) : ''}
+        </div>
+      `;
+    } catch(err) {
+      card.className = 'error';
+      card.innerHTML = 'Błąd połączenia. Spróbuj ponownie.';
+    }
+  });
+
+  function field(label, value, big = false) {
+    if (\!value || value === '—' || value === 'null') return '';
+    return `
+      <div class="field">
+        <div class="label">${label}</div>
+        <div class="value ${big ? 'big' : ''}">${value}</div>
+      </div>`;
+  }
+</script>
+</body>
+</html>

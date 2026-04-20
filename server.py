@@ -77,6 +77,18 @@ def coords_to_epsg2177(lon, lat):
     return easting, northing
 
 
+_LOG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'analytics.log')
+
+
+def _log_dzialka(ozn_dz):
+    ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    forwarded = request.headers.get('X-Forwarded-For', '')
+    ip = forwarded.split(',')[0].strip() if forwarded else request.remote_addr
+    ua = request.headers.get('User-Agent', '')
+    with open(_LOG_PATH, 'a', encoding='utf-8') as f:
+        f.write(f'| {ts} | {ozn_dz} | {ip} | {ua} |\n')
+
+
 # --- Routes ---
 
 @app.route('/')
@@ -139,6 +151,8 @@ def dzialka():
 
     p = features[0]['properties']
     ozn_dz = p.get('OZN_DZ', '')
+
+    _log_dzialka(ozn_dz)
 
     # Lookup powierzenia
     pow_info = POWIERZENIA.get(ozn_dz)

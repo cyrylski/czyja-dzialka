@@ -81,6 +81,42 @@ def debug_session():
     })
 
 
+@app.route('/debug-featureinfo')
+def debug_featureinfo():
+    """Testuje featureInfo dla stałego punktu (działka ŚRÓDKA 4/438)."""
+    cookies = get_session()
+    # Stały punkt testowy — działka 4/438 ŚRÓDKA
+    payload = {
+        "items": [
+            {
+                "mapServiceId": SERVICE_EGIB,
+                "itemDefinitionIds": ["dzialki_szraw_sql"],
+                "additionalData": {"imageFormat": "image/png", "forceInfoFormat": False, "vspm": "{}"}
+            }
+        ],
+        "i": 400,
+        "j": 400,
+        "crsId": "EPSG:2177",
+        "format": "text/html",
+        "count": 10,
+        "bbox": [6429350.0, 5808955.0, 6429559.0, 5809019.0],
+        "width": 800,
+        "height": 800
+    }
+    r = requests.post(
+        'https://sipmapy.geopoz.poznan.pl/sipportal/api/stateful/featureInfo',
+        json=payload,
+        cookies=cookies,
+        headers=HEADERS,
+        timeout=15
+    )
+    return jsonify({
+        'status': r.status_code,
+        'cookies_sent': list(cookies.keys()),
+        'response': r.text[:1000]
+    })
+
+
 @app.route('/dzialka')
 def dzialka():
     try:

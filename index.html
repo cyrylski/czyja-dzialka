@@ -228,7 +228,7 @@
   <div id="card-wrap">
     <div class="card-header">
       <div>
-        <h1>Czyja to działka? <span style="color:#999">(wersja testowa)</span></h1>
+        <h1>Czyja to działka? <span style="color:#999; font-size:0.875rem; font-weight:400">(wersja testowa)</span></h1>
         <span style="font-size:0.625rem; color:#000">Masz pomysł na ulepszenia? <a href="mailto:cyrylski@gmail.com">Napisz do mnie</a>.</span>
       </div>
       <button id="minimize-btn" aria-label="Zwiń panel">
@@ -406,17 +406,12 @@
         }).addTo(map);
       }
 
-      const zarzadca = d.pow_opis === 'brak informacji' && d.wlad === 'Wykonywanie zada\u0144 zarz\u0105dcy dr\u00f3g publicznych'
-        ? 'Prawdopodobnie Zarz\u0105d Dr\u00f3g Miejskich<br><span style="color:#555;font-size:12px">(brak informacji w danych GEOPOZu)</span>'
-        : d.pow_opis;
-
       if (d.baza_data) {
         document.getElementById('baza-info').textContent = 'Ostatnia aktualizacja bazy: ' + d.baza_data;
       }
 
-      const secondRow = d.pow_syg
-        ? '<div class="fields-row">' + field('Rodzaj zarz\u0105dzania', d.wlad, 'sm') + field('Sygnatura powierzenia', d.pow_syg, 'sm') + '</div>'
-        : field('Rodzaj zarz\u0105dzania', d.wlad, 'sm');
+      const powList = d.pow_list || [];
+      const zarzadcaField = renderZarzadcy(powList, d.wlad);
 
       setCardContent('',
         '<div style="width:100%">' +
@@ -426,9 +421,9 @@
         '</div>' +
         '<div class="fields-row">' +
         field('W\u0142a\u015bciciel', d.wlasc) +
-        field('Zarz\u0105dca', zarzadca) +
+        zarzadcaField +
         '</div>' +
-        secondRow +
+        field('Rodzaj zarz\u0105dzania', d.wlad, 'sm') +
         '</div>');
 
     } catch(err) {
@@ -464,6 +459,25 @@
       '<div class="label">' + label + '</div>' +
       '<div class="value' + (size ? ' ' + size : '') + '">' + value + '</div>' +
       '</div>';
+  }
+
+  function renderZarzadcy(powList, wlad) {
+    if (powList.length === 0) {
+      const val = wlad === 'Wykonywanie zada\u0144 zarz\u0105dcy dr\u00f3g publicznych'
+        ? 'Prawdopodobnie Zarz\u0105d Dr\u00f3g Miejskich<br><span style="color:#555;font-size:12px">(brak informacji w danych GEOPOZu)</span>'
+        : 'brak informacji';
+      return field('Zarz\u0105dca', val);
+    }
+    let html = '<div class="field"><div class="label">Zarz\u0105dca</div>';
+    powList.forEach(function(p, i) {
+      if (i > 0) html += '<div style="height:8px"></div>';
+      html += '<div class="value">' + (p.opis || 'brak informacji') + '</div>';
+      if (p.sygnatura) {
+        html += '<div class="value sm" style="color:#555">' + p.sygnatura + '</div>';
+      }
+    });
+    html += '</div>';
+    return html;
   }
 </script>
 </body>

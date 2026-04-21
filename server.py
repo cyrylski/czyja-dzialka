@@ -56,10 +56,13 @@ def load_powierzenia():
             ozn = str(row[idx_ozn]).strip() if row[idx_ozn] else None
             if not ozn or ozn == 'None':
                 continue
-            data[ozn] = {
+            entry = {
                 'opis':      str(row[idx_opis]).strip() if row[idx_opis] else '',
                 'sygnatura': str(row[idx_syg]).strip()  if row[idx_syg]  else '',
             }
+            if ozn not in data:
+                data[ozn] = []
+            data[ozn].append(entry)
         print(f"[POWIERZENIA] Wczytano {len(data)} rekordów z {os.path.basename(filepath)}")
         return data, date_str
     except Exception as e:
@@ -203,14 +206,7 @@ def dzialka():
 
     _log_dzialka(ozn_dz)
 
-    # Lookup powierzenia
-    pow_info = POWIERZENIA.get(ozn_dz)
-    if pow_info:
-        pow_opis = pow_info['opis']
-        pow_syg  = pow_info['sygnatura']
-    else:
-        pow_opis = 'brak informacji'
-        pow_syg  = ''
+    pow_list = POWIERZENIA.get(ozn_dz, [])
 
     # WFS — pobierz geometrię działki przez przecięcie z punktem kliknięcia.
     # Używamy SRID=4326;POINT w EWKT, bo CQL_FILTER domyślnie przyjmuje CRS warstwy (EPSG:2177).
@@ -242,8 +238,7 @@ def dzialka():
         'wlad':         (p.get('WLAD') or '').strip().lstrip('- ').rstrip(',') or '\u2014',
         'pow_ewd':      str(p.get('POW_EWD', '\u2014')),
         'adres':        p.get('ADRES_DZIALKI', '\u2014'),
-        'pow_opis':     pow_opis,
-        'pow_syg':      pow_syg,
+        'pow_list':     pow_list,
         'baza_data':    POWIERZENIA_DATA or '',
         'baza_liczba':  len(POWIERZENIA),
     }

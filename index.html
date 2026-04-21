@@ -20,32 +20,21 @@
       transform: translateX(-50%);
       width: 100%;
       max-width: 600px;
-      padding: 0;
-      background: rgba(255,255,255,0.33);
+      padding: 20px;
+      background: rgba(255,255,255,0.5);
       border-radius: 20px;
       z-index: 1000;
-    }
-
-    .panel-header {
       display: flex;
-      align-items: baseline;
-      justify-content: space-between;
-      padding: 20px;
-      margin-bottom: 0;
+      flex-direction: column;
+      gap: 10px;
     }
 
     h1 {
-      font-size: 1.125rem;
+      font-size: 1.75rem;
       font-weight: 700;
-      color: #1a1a2e;
+      color: #101828;
+      letter-spacing: 0.37px;
     }
-    .subtitle {
-      font-size: 0.8125rem;
-      color: #666;
-      text-align: right;
-    }
-    .subtitle a { color: #2b6cb0; text-decoration: none; }
-    .subtitle a:hover { text-decoration: underline; }
 
     #card-wrap {
       background: white;
@@ -64,26 +53,27 @@
     #card.loading { color: #888; font-size: 0.875rem; }
     #card.error   { color: #e53e3e; font-size: 0.875rem; }
 
-    .field { margin-bottom: 20px; }
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 20px;
+    }
     .field:last-child { margin-bottom: 0; }
+
     .label {
-      font-size: 0.6875rem;
+      font-size: 0.625rem;
       font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.2px;
       color: #999;
-      margin-bottom: 2px;
     }
     .value {
-      font-size: 0.9375rem;
-      color: #1a1a2e;
-      line-height: 1.4;
+      font-size: 0.875rem;
+      color: #101828;
     }
-    .value.big {
-      font-size: 1.125rem;
-      font-weight: 700;
-      color: #2b6cb0;
-    }
+    .value.sm  { font-size: 0.75rem; }
+    .value.big { font-size: 1.375rem; font-weight: 600; color: #2b6cb0; }
 
     .hint {
       font-size: 0.8125rem;
@@ -96,30 +86,27 @@
       gap: 20px;
       margin-bottom: 20px;
     }
-    .fields-row .field {
-      flex: 1;
-      margin-bottom: 0;
-    }
+    .fields-row:last-child { margin-bottom: 0; }
+    .fields-row .field { flex: 1; margin-bottom: 0; }
 
-    .card-footer {
-      border-top: 1px solid #e5e7eb;
-      padding: 20px;
+    .panel-footer {
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 10px;
     }
     .footer-row {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 0.75rem;
+      font-size: 0.625rem;
       gap: 16px;
     }
     .footer-row a { color: inherit; text-decoration: underline; }
     .footer-meta {
-      font-size: 0.75rem;
+      font-size: 0.625rem;
       color: #999;
       text-align: right;
+      white-space: nowrap;
     }
 
     .parcel-label {
@@ -159,20 +146,20 @@
 </div>
 
 <div id="panel">
-  <div class="panel-header">
-    <h1>Czyja to działka?</h1>
-    <p class="subtitle">Dane z <a href="https://sipaplikacje.geopoz.poznan.pl/raporty/">GEOPOZu</a></p>
-  </div>
+  <h1>Czyja to działka?</h1>
   <div id="card-wrap">
     <div id="card">
       <span class="hint">Dotknij dowolnego miejsca na mapie</span>
     </div>
-    <div class="card-footer">
-      <div class="footer-row">
-        <span>Potrzebujesz więcej informacji? Masz pomysł na ulepszenia? <a href="mailto:cyrylski@gmail.com">Napisz do mnie</a>.</span>
-        <span style="white-space:nowrap">Autor: <a href="https://www.linkedin.com/in/cyryl-kwasniewski/" target="_blank">Cyryl Kwaśniewski</a></span>
-      </div>
+  </div>
+  <div class="panel-footer">
+    <div class="footer-row" style="color:#4a5565">
+      <span>Wszystkie dane pochodzą z <a href="https://sipaplikacje.geopoz.poznan.pl/raporty/">GEOPOZu</a></span>
       <div class="footer-meta" id="baza-info"></div>
+    </div>
+    <div class="footer-row" style="color:#000">
+      <span>Potrzebujesz więcej informacji? Masz pomysł na ulepszenia? <a href="mailto:cyrylski@gmail.com">Napisz do mnie</a>.</span>
+      <span style="white-space:nowrap">Autor: <a href="https://www.linkedin.com/in/cyryl-kwasniewski/" target="_blank">Cyryl Kwaśniewski</a></span>
     </div>
   </div>
 </div>
@@ -288,17 +275,20 @@
         document.getElementById('baza-info').textContent = 'Ostatnia aktualizacja bazy: ' + d.baza_data;
       }
 
+      const secondRow = d.pow_syg
+        ? '<div class="fields-row">' + field('Rodzaj zarz\u0105dzania', d.wlad, 'sm') + field('Sygnatura powierzenia', d.pow_syg, 'sm') + '</div>'
+        : field('Rodzaj zarz\u0105dzania', d.wlad, 'sm');
+
       card.className = '';
       card.innerHTML =
         '<div style="width:100%">' +
-        field('Numer dzia\u0142ki', d.ozn_dz, true) +
+        field('Numer dzia\u0142ki', d.ozn_dz, 'big') +
         '<div class="fields-row">' +
         field('W\u0142a\u015bciciel', d.wlasc) +
         field('Zarz\u0105dca', zarzadca) +
         '</div>' +
-        (d.pow_syg ? field('Sygnatura powierzenia', d.pow_syg) : '') +
-        field('Rodzaj zarz\u0105dzania', d.wlad) +
-        field('Powierzchnia', d.pow_ewd ? d.pow_ewd + ' ha' : '\u2014') +
+        secondRow +
+        (d.pow_ewd ? field('Powierzchnia', d.pow_ewd + ' ha', 'sm') : '') +
         '</div>';
 
     } catch(err) {
@@ -308,11 +298,11 @@
     }
   }
 
-  function field(label, value, big) {
+  function field(label, value, size) {
     if (!value || value === '\u2014' || value === 'null') return '';
     return '<div class="field">' +
       '<div class="label">' + label + '</div>' +
-      '<div class="value' + (big ? ' big' : '') + '">' + value + '</div>' +
+      '<div class="value' + (size ? ' ' + size : '') + '">' + value + '</div>' +
       '</div>';
   }
 </script>

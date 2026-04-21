@@ -198,14 +198,23 @@
     maxZoom: 20
   }).addTo(map);
 
-  // Warstwa obrysów działek z GEOPOZ (WMS, półprzezroczysta)
+  // Warstwa struktury własności działek z GEOPOZ (WMS, półprzezroczysta)
   L.tileLayer.wms('https://wms2.geopoz.poznan.pl/geoserver/egib/ows', {
     layers: 'dzialki_szraw_sql',
     format: 'image/png',
     transparent: true,
-    opacity: 0.45,
+    opacity: 0.32,
     maxZoom: 20,
     attribution: 'Ewidencja gruntów © GEOPOZ Poznań'
+  }).addTo(map);
+
+  // Warstwa obrysów działek ewidencyjnych (czarne kontury)
+  L.tileLayer.wms('https://wms2.geopoz.poznan.pl/geoserver/egib/ows', {
+    layers: 'dzialki_ewidencyjne_sql',
+    format: 'image/png',
+    transparent: true,
+    opacity: 0.4,
+    maxZoom: 20
   }).addTo(map);
 
   // Geolokalizacja przy starcie

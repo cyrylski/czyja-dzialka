@@ -20,8 +20,9 @@
       transform: translateX(-50%);
       width: 100%;
       max-width: 600px;
-      padding: 0 16px;
-      background: transparent;
+      padding: 0;
+      background: rgba(255,255,255,0.33);
+      border-radius: 20px;
       z-index: 1000;
     }
 
@@ -29,16 +30,17 @@
       display: flex;
       align-items: baseline;
       justify-content: space-between;
-      margin-bottom: 8px;
+      padding: 20px;
+      margin-bottom: 0;
     }
 
     h1 {
-      font-size: 18px;
+      font-size: 1.125rem;
       font-weight: 700;
       color: #1a1a2e;
     }
     .subtitle {
-      font-size: 13px;
+      font-size: 0.8125rem;
       color: #666;
       text-align: right;
     }
@@ -47,9 +49,9 @@
 
     #card {
       background: white;
-      border-radius: 12px;
-      padding: 16px;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.1);
       min-height: 80px;
       display: flex;
       align-items: center;
@@ -59,10 +61,10 @@
     #card.loading { color: #888; font-size: 14px; }
     #card.error   { color: #e53e3e; font-size: 14px; }
 
-    .field { margin-bottom: 12px; }
+    .field { margin-bottom: 20px; }
     .field:last-child { margin-bottom: 0; }
     .label {
-      font-size: 11px;
+      font-size: 0.6875rem;
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.05em;
@@ -70,20 +72,54 @@
       margin-bottom: 2px;
     }
     .value {
-      font-size: 15px;
+      font-size: 0.9375rem;
       color: #1a1a2e;
       line-height: 1.4;
     }
     .value.big {
-      font-size: 18px;
+      font-size: 1.125rem;
       font-weight: 700;
       color: #2b6cb0;
     }
 
     .hint {
-      font-size: 13px;
+      font-size: 0.8125rem;
       color: #888;
       text-align: center;
+    }
+
+    .fields-row {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    .fields-row .field {
+      flex: 1;
+      margin-bottom: 0;
+    }
+
+    .card-footer {
+      background: white;
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.1);
+      margin-top: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .footer-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.875rem;
+      gap: 16px;
+    }
+    .footer-row a { color: inherit; text-decoration: underline; }
+    .footer-meta {
+      font-size: 0.875rem;
+      color: #999;
+      text-align: right;
     }
 
     .parcel-label {
@@ -129,6 +165,13 @@
   </div>
   <div id="card">
     <span class="hint">Dotknij dowolnego miejsca na mapie</span>
+  </div>
+  <div class="card-footer">
+    <div class="footer-row">
+      <span>Potrzebujesz więcej informacji? Masz pomysł na ulepszenia? <a href="mailto:cyrylski@gmail.com">Napisz do mnie</a>.</span>
+      <span style="white-space:nowrap">Autor: <a href="https://www.linkedin.com/in/cyryl-kwasniewski/" target="_blank">Cyryl Kwaśniewski</a></span>
+    </div>
+    <div class="footer-meta" id="baza-info"></div>
   </div>
 </div>
 
@@ -235,22 +278,25 @@
         }).addTo(map);
       }
 
-      const bazaInfo = d.baza_data
-        ? '<div style="text-align:right;font-size:11px;color:#bbb;margin-top:12px">Ostatnia aktualizacja bazy: ' + d.baza_data + '</div>'
-        : '';
+      const zarzadca = d.pow_opis === 'brak informacji' && d.wlad === 'Wykonywanie zada\u0144 zarz\u0105dcy dr\u00f3g publicznych'
+        ? 'Prawdopodobnie Zarz\u0105d Dr\u00f3g Miejskich<br><span style="color:#555;font-size:12px">(brak informacji w danych GEOPOZu)</span>'
+        : d.pow_opis;
+
+      if (d.baza_data) {
+        document.getElementById('baza-info').textContent = 'Ostatnia aktualizacja bazy: ' + d.baza_data;
+      }
 
       card.className = '';
       card.innerHTML =
         '<div style="width:100%">' +
         field('Numer dzia\u0142ki', d.ozn_dz, true) +
+        '<div class="fields-row">' +
         field('W\u0142a\u015bciciel', d.wlasc) +
-        field('Zarz\u0105dca', d.pow_opis === 'brak informacji' && d.wlad === 'Wykonywanie zada\u0144 zarz\u0105dcy dr\u00f3g publicznych'
-          ? 'Prawdopodobnie Zarz\u0105d Dr\u00f3g Miejskich<br><span style="color:#555;font-size:12px">(brak informacji w danych GEOPOZu)</span>'
-          : d.pow_opis) +
+        field('Zarz\u0105dca', zarzadca) +
+        '</div>' +
         (d.pow_syg ? field('Sygnatura powierzenia', d.pow_syg) : '') +
         field('Rodzaj zarz\u0105dzania', d.wlad) +
         field('Powierzchnia', d.pow_ewd ? d.pow_ewd + ' ha' : '\u2014') +
-        bazaInfo +
         '</div>';
 
     } catch(err) {

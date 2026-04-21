@@ -158,6 +158,20 @@
       box-shadow: 0 1px 5px rgba(0,0,0,0.35);
     }
 
+    @keyframes parcelFadeIn {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+    .parcel-entering {
+      animation: parcelFadeIn 0.45s ease forwards;
+    }
+    @keyframes circleFadeOut {
+      to { opacity: 0; }
+    }
+    .circle-fading {
+      animation: circleFadeOut 0.3s ease forwards;
+    }
+
   </style>
 </head>
 <body>
@@ -315,7 +329,7 @@
       if (myToken !== requestToken) return;
       const d = await res.json();
 
-      if (selectionCircle) { selectionCircle.remove(); selectionCircle = null; }
+      if (selectionCircle) { fadeRemoveCircle(selectionCircle); selectionCircle = null; }
 
       if (d.error) {
         setCardContent('error', d.error);
@@ -324,7 +338,7 @@
 
       if (d.geometry) {
         parcelLayer = L.geoJSON({ type: 'Feature', geometry: d.geometry }, {
-          style: { color: '#2b6cb0', weight: 3, fillColor: '#4299e1', fillOpacity: 0.35 }
+          style: { color: '#2b6cb0', weight: 3, fillColor: '#4299e1', fillOpacity: 0.35, className: 'parcel-entering' }
         }).addTo(map);
         const center = parcelLayer.getBounds().getCenter();
         L.tooltip({ permanent: true, direction: 'center', className: 'parcel-label' })
@@ -365,8 +379,18 @@
 
     } catch(err) {
       if (myToken !== requestToken) return;
-      if (selectionCircle) { selectionCircle.remove(); selectionCircle = null; }
+      if (selectionCircle) { fadeRemoveCircle(selectionCircle); selectionCircle = null; }
       setCardContent('error', 'B\u0142\u0105d po\u0142\u0105czenia. Spr\u00f3buj ponownie.');
+    }
+  }
+
+  function fadeRemoveCircle(circle) {
+    const el = circle.getElement();
+    if (el) {
+      el.classList.add('circle-fading');
+      setTimeout(() => circle.remove(), 300);
+    } else {
+      circle.remove();
     }
   }
 

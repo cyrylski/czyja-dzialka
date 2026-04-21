@@ -15,18 +15,12 @@
 
     #panel {
       position: absolute;
-      bottom: 16px;
+      bottom: 0;
       left: 50%;
       transform: translateX(-50%);
       width: 100%;
       max-width: 600px;
-      padding: 20px;
-      background: rgba(255,255,255,0.5);
-      border-radius: 20px;
       z-index: 1000;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
     }
 
     h1 {
@@ -38,12 +32,15 @@
 
     #card-wrap {
       background: white;
-      border-radius: 16px;
+      border-radius: 16px 16px 0 0;
       box-shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.1);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
     }
 
     #card {
-      padding: 20px;
       min-height: 80px;
       display: flex;
       align-items: center;
@@ -74,6 +71,7 @@
     }
     .value.sm  { font-size: 0.75rem; }
     .value.big { font-size: 1.375rem; font-weight: 600; color: #2b6cb0; }
+    .value.pow { font-size: 0.875rem; color: #000; letter-spacing: 0.3955px; }
 
     .hint {
       font-size: 0.8125rem;
@@ -93,6 +91,8 @@
       display: flex;
       flex-direction: column;
       gap: 10px;
+      border-top: 1px solid rgba(153,153,153,0.5);
+      padding-top: 20px;
     }
     .footer-row {
       display: flex;
@@ -146,20 +146,23 @@
 </div>
 
 <div id="panel">
-  <h1>Czyja to działka?</h1>
   <div id="card-wrap">
+    <h1>Czyja to działka?</h1>
     <div id="card">
       <span class="hint">Dotknij dowolnego miejsca na mapie</span>
     </div>
-  </div>
-  <div class="panel-footer">
-    <div class="footer-row" style="color:#4a5565">
-      <span>Wszystkie dane pochodzą z <a href="https://sipaplikacje.geopoz.poznan.pl/raporty/">GEOPOZu</a></span>
-      <div class="footer-meta" id="baza-info"></div>
-    </div>
-    <div class="footer-row" style="color:#000">
-      <span>Potrzebujesz więcej informacji? Masz pomysł na ulepszenia? <a href="mailto:cyrylski@gmail.com">Napisz do mnie</a>.</span>
-      <span style="white-space:nowrap">Autor: <a href="https://www.linkedin.com/in/cyryl-kwasniewski/" target="_blank">Cyryl Kwaśniewski</a></span>
+    <div class="panel-footer">
+      <div class="footer-row" style="color:#4a5565">
+        <span>Wszystkie dane pochodzą z <a href="https://sipaplikacje.geopoz.poznan.pl/raporty/">GEOPOZu</a></span>
+        <div class="footer-meta" id="baza-info"></div>
+      </div>
+      <div class="footer-row" style="color:#000">
+        <div>
+          <p>Masz pomysł na ulepszenia?</p>
+          <p><a href="mailto:cyrylski@gmail.com">Napisz do mnie</a>.</p>
+        </div>
+        <span style="white-space:nowrap">Autor: <a href="https://www.linkedin.com/in/cyryl-kwasniewski/" target="_blank">Cyryl Kwaśniewski</a></span>
+      </div>
     </div>
   </div>
 </div>
@@ -282,13 +285,15 @@
       card.className = '';
       card.innerHTML =
         '<div style="width:100%">' +
+        '<div class="fields-row" style="align-items:center">' +
         field('Numer dzia\u0142ki', d.ozn_dz, 'big') +
+        (d.pow_ewd ? field('Powierzchnia', d.pow_ewd + ' ha', 'pow') : '') +
+        '</div>' +
         '<div class="fields-row">' +
         field('W\u0142a\u015bciciel', d.wlasc) +
         field('Zarz\u0105dca', zarzadca) +
         '</div>' +
         secondRow +
-        (d.pow_ewd ? field('Powierzchnia', d.pow_ewd + ' ha', 'sm') : '') +
         '</div>';
 
     } catch(err) {

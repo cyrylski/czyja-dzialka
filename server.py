@@ -3,6 +3,9 @@ import requests
 import os
 import glob
 import re
+import smtplib
+import threading
+from email.mime.text import MIMEText
 from datetime import datetime
 
 app = Flask(__name__, static_folder='.')
@@ -79,6 +82,50 @@ def coords_to_epsg2177(lon, lat):
 
 _LOG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'analytics.log')
 
+_EMAIL_FROM = os.environ.get('LOG_EMAIL_FROM', '')
+_EMAIL_PASS = os.environ.get('LOG_EMAIL_PASSWORD', '')
+_EMAIL_TO   = os.environ.get('LOG_EMAIL_TO', '')
+
+
+def _geo_lookup(ip):
+    try:
+        r = requests.get(
+            f'http://ip-api.com/json/{ip}',
+            params={'fields': 'city,country'},
+            timeout=2,
+        )
+        if r.status_code == 200:
+            d = r.json()
+            city, country = d.get('city', ''), d.get('country', '')
+            return f"{city}, {country}".strip(', ')
+    except Exception:
+        pass
+    return ''
+
+
+def _send_log_email(ozn_dz, ip, ua, ts):
+    if not all([_EMAIL_FROM, _EMAIL_PASS, _EMAIL_TO]):
+        return
+    location = _geo_lookup(ip)
+    loc_str = f'  ({location})' if location else ''
+    body = (
+        f"Czas:      {ts}\n"
+        f"Działka:   {ozn_dz}\n"
+        f"IP:        {ip}{loc_str}\n"
+        f"Urządzenie: {ua}\n"
+    )
+    msg = MIMEText(body, 'plain', 'utf-8')
+    msg['Subject'] = f'[działka] {ozn_dz}'
+    msg['From'] = _EMAIL_FROM
+    msg['To'] = _EMAIL_TO
+    try:
+        with smtplib.SMTP('smtp.gmail.com', 587) as s:
+            s.starttls()
+            s.login(_EMAIL_FROM, _EMAIL_PASS)
+            s.sendmail(_EMAIL_FROM, _EMAIL_TO, msg.as_string())
+    except Exception as e:
+        print(f'[EMAIL] Błąd wysyłki: {e}')
+
 
 def _log_dzialka(ozn_dz):
     ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -87,6 +134,7 @@ def _log_dzialka(ozn_dz):
     ua = request.headers.get('User-Agent', '')
     with open(_LOG_PATH, 'a', encoding='utf-8') as f:
         f.write(f'| {ts} | {ozn_dz} | {ip} | {ua} |\n')
+    threading.Thread(target=_send_log_email, args=(ozn_dz, ip, ua, ts), daemon=True).start()
 
 
 # --- Routes ---

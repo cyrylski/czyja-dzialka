@@ -47,19 +47,22 @@
     .subtitle a { color: #2b6cb0; text-decoration: none; }
     .subtitle a:hover { text-decoration: underline; }
 
-    #card {
+    #card-wrap {
       background: white;
       border-radius: 16px;
-      padding: 20px;
       box-shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.1);
+    }
+
+    #card {
+      padding: 20px;
       min-height: 80px;
       display: flex;
       align-items: center;
       justify-content: center;
     }
 
-    #card.loading { color: #888; font-size: 14px; }
-    #card.error   { color: #e53e3e; font-size: 14px; }
+    #card.loading { color: #888; font-size: 0.875rem; }
+    #card.error   { color: #e53e3e; font-size: 0.875rem; }
 
     .field { margin-bottom: 20px; }
     .field:last-child { margin-bottom: 0; }
@@ -99,11 +102,8 @@
     }
 
     .card-footer {
-      background: white;
-      border-radius: 16px;
+      border-top: 1px solid #e5e7eb;
       padding: 20px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.1);
-      margin-top: 8px;
       display: flex;
       flex-direction: column;
       gap: 16px;
@@ -112,12 +112,12 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 0.875rem;
+      font-size: 0.75rem;
       gap: 16px;
     }
     .footer-row a { color: inherit; text-decoration: underline; }
     .footer-meta {
-      font-size: 0.875rem;
+      font-size: 0.75rem;
       color: #999;
       text-align: right;
     }
@@ -163,15 +163,17 @@
     <h1>Czyja to działka?</h1>
     <p class="subtitle">Dane z <a href="https://sipaplikacje.geopoz.poznan.pl/raporty/">GEOPOZu</a></p>
   </div>
-  <div id="card">
-    <span class="hint">Dotknij dowolnego miejsca na mapie</span>
-  </div>
-  <div class="card-footer">
-    <div class="footer-row">
-      <span>Potrzebujesz więcej informacji? Masz pomysł na ulepszenia? <a href="mailto:cyrylski@gmail.com">Napisz do mnie</a>.</span>
-      <span style="white-space:nowrap">Autor: <a href="https://www.linkedin.com/in/cyryl-kwasniewski/" target="_blank">Cyryl Kwaśniewski</a></span>
+  <div id="card-wrap">
+    <div id="card">
+      <span class="hint">Dotknij dowolnego miejsca na mapie</span>
     </div>
-    <div class="footer-meta" id="baza-info"></div>
+    <div class="card-footer">
+      <div class="footer-row">
+        <span>Potrzebujesz więcej informacji? Masz pomysł na ulepszenia? <a href="mailto:cyrylski@gmail.com">Napisz do mnie</a>.</span>
+        <span style="white-space:nowrap">Autor: <a href="https://www.linkedin.com/in/cyryl-kwasniewski/" target="_blank">Cyryl Kwaśniewski</a></span>
+      </div>
+      <div class="footer-meta" id="baza-info"></div>
+    </div>
   </div>
 </div>
 

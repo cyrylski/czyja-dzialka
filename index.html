@@ -3,31 +3,47 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Własność gruntów – Poznań</title>
+  <title>Czyja to działka? – Poznań</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; overflow: hidden; }
 
-    #map { width: 100%; height: 60vh; min-height: 300px; }
+    #map { width: 100%; height: 100vh; }
+
+    #map-wrap { position: relative; height: 100vh; }
 
     #panel {
-      padding: 16px;
+      position: absolute;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
       max-width: 600px;
-      margin: 0 auto;
+      padding: 0 16px;
+      background: transparent;
+      z-index: 1000;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 8px;
     }
 
     h1 {
       font-size: 18px;
       font-weight: 700;
       color: #1a1a2e;
-      margin-bottom: 4px;
     }
     .subtitle {
       font-size: 13px;
       color: #666;
-      margin-bottom: 16px;
+      text-align: right;
     }
+    .subtitle a { color: #2b6cb0; text-decoration: none; }
+    .subtitle a:hover { text-decoration: underline; }
 
     #card {
       background: white;
@@ -97,7 +113,6 @@
       z-index: 1000;
     }
 
-    #map-wrap { position: relative; }
   </style>
 </head>
 <body>
@@ -108,8 +123,10 @@
 </div>
 
 <div id="panel">
-  <h1>Własność gruntów</h1>
-  <p class="subtitle">Dane ewidencyjne GEOPOZ Poznań</p>
+  <div class="panel-header">
+    <h1>Czyja to działka?</h1>
+    <p class="subtitle">Dane z <a href="https://sipaplikacje.geopoz.poznan.pl/raporty/">GEOPOZu</a></p>
+  </div>
   <div id="card">
     <span class="hint">Dotknij dowolnego miejsca na mapie</span>
   </div>
@@ -219,7 +236,7 @@
       }
 
       const bazaInfo = d.baza_data
-        ? '<div style="text-align:right;font-size:11px;color:#bbb;margin-top:12px">Baza powierze\u0144: ' + d.baza_data + ' (' + d.baza_liczba + ' rekord\u00f3w)</div>'
+        ? '<div style="text-align:right;font-size:11px;color:#bbb;margin-top:12px">Ostatnia aktualizacja bazy: ' + d.baza_data + '</div>'
         : '';
 
       card.className = '';

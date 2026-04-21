@@ -135,7 +135,8 @@ def dzialka():
     try:
         r = requests.get(GEOSERVER, params=params, timeout=15)
     except Exception as e:
-        return jsonify({'error': f'Blad polaczenia: {e}'}), 502
+        print(f"[WMS] exception: {e}")
+        return jsonify({'error': 'Serwer GEOPOZ chwilowo niedostępny. Spróbuj ponownie za chwilę.'}), 502
 
     if r.status_code != 200:
         return jsonify({'error': f'GeoServer zwrocil {r.status_code}'}), 502

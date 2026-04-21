@@ -136,6 +136,28 @@
       z-index: 1000;
     }
 
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .spinner {
+      width: 22px;
+      height: 22px;
+      border: 2.5px solid rgba(59, 130, 246, 0.15);
+      border-top-color: #3b82f6;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      flex-shrink: 0;
+    }
+
+    .user-location-dot {
+      width: 14px;
+      height: 14px;
+      background: #3b82f6;
+      border: 2.5px solid white;
+      border-radius: 50%;
+      box-shadow: 0 1px 5px rgba(0,0,0,0.35);
+    }
+
   </style>
 </head>
 <body>
@@ -193,6 +215,15 @@
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
         map.setView([lat, lng], 16);
+        L.marker([lat, lng], {
+          icon: L.divIcon({
+            className: '',
+            html: '<div class="user-location-dot"></div>',
+            iconSize: [14, 14],
+            iconAnchor: [7, 7]
+          }),
+          zIndexOffset: 500
+        }).addTo(map);
       },
       function() {
         // Brak zgody lub błąd — zostaje domyślny widok Poznania
@@ -203,6 +234,7 @@
 
   let marker = null;
   let parcelLayer = null;
+  let selectionCircle = null;
   const card = document.getElementById('card');
   const tapHint = document.getElementById('tap-hint');
 
@@ -232,31 +264,59 @@
     map.zoomIn();
   });
 
+  function setCardContent(className, html) {
+    const fromHeight = card.offsetHeight;
+    card.className = className;
+    card.innerHTML = html;
+    const toHeight = card.scrollHeight;
+    if (toHeight !== fromHeight) {
+      card.style.height = fromHeight + 'px';
+      card.style.transition = 'height 0.35s ease';
+      requestAnimationFrame(() => {
+        card.style.height = toHeight + 'px';
+      });
+      card.addEventListener('transitionend', function handler() {
+        card.style.height = '';
+        card.style.transition = '';
+        card.removeEventListener('transitionend', handler);
+      });
+    }
+  }
+
   async function handleSingleClick(e) {
     const { lat, lng } = e.latlng;
     const myToken = ++requestToken;
 
     if (parcelLayer) { parcelLayer.remove(); parcelLayer = null; }
     if (marker) { marker.remove(); marker = null; }
+    if (selectionCircle) { selectionCircle.remove(); selectionCircle = null; }
+
+    selectionCircle = L.circleMarker([lat, lng], {
+      radius: 10,
+      color: '#3b82f6',
+      weight: 2,
+      fillColor: '#3b82f6',
+      fillOpacity: 0.15
+    }).addTo(map);
 
     tapHint.style.display = 'none';
-    card.className = 'loading';
-    card.innerHTML = 'Pobieranie danych\u2026';
+    setCardContent('loading', '<div style="display:flex;align-items:center;gap:10px"><div class="spinner"></div><span>Pobieranie danych\u2026</span></div>');
 
     try {
       const res = await fetch('/dzialka?lat=' + lat + '&lon=' + lng);
       if (myToken !== requestToken) return;
       const d = await res.json();
 
+      if (selectionCircle) { selectionCircle.remove(); selectionCircle = null; }
+
       if (d.error) {
-        card.className = 'error';
-        card.innerHTML = d.error;
+        setCardContent('error', d.error);
         return;
       }
 
       if (d.geometry) {
         parcelLayer = L.geoJSON({ type: 'Feature', geometry: d.geometry }, {
-          style: { color: '#000000', weight: 3, fillColor: '#3b82f6', fillOpacity: 0.35 }
+          style: { color: '#000000', weight: 4, fillColor: '#3b82f6', fillOpacity: 0.35 }
         }).addTo(map);
         const center = parcelLayer.getBounds().getCenter();
         L.tooltip({ permanent: true, direction: 'center', className: 'parcel-label' })
@@ -282,8 +342,7 @@
         ? '<div class="fields-row">' + field('Rodzaj zarz\u0105dzania', d.wlad, 'sm') + field('Sygnatura powierzenia', d.pow_syg, 'sm') + '</div>'
         : field('Rodzaj zarz\u0105dzania', d.wlad, 'sm');
 
-      card.className = '';
-      card.innerHTML =
+      setCardContent('',
         '<div style="width:100%">' +
         '<div class="fields-row" style="align-items:center">' +
         field('Numer dzia\u0142ki', d.ozn_dz, 'big') +
@@ -294,12 +353,12 @@
         field('Zarz\u0105dca', zarzadca) +
         '</div>' +
         secondRow +
-        '</div>';
+        '</div>');
 
     } catch(err) {
       if (myToken !== requestToken) return;
-      card.className = 'error';
-      card.innerHTML = 'B\u0142\u0105d po\u0142\u0105czenia. Spr\u00f3buj ponownie.';
+      if (selectionCircle) { selectionCircle.remove(); selectionCircle = null; }
+      setCardContent('error', 'B\u0142\u0105d po\u0142\u0105czenia. Spr\u00f3buj ponownie.');
     }
   }
 

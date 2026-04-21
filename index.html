@@ -172,6 +172,49 @@
       animation: circleFadeOut 0.3s ease forwards;
     }
 
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    #minimize-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px;
+      color: #999;
+      display: flex;
+      align-items: center;
+      flex-shrink: 0;
+      transition: color 0.2s;
+      margin-top: 2px;
+    }
+    #minimize-btn:hover { color: #555; }
+    #minimize-btn svg {
+      transition: transform 0.35s ease;
+    }
+    #minimize-btn.collapsed svg {
+      transform: rotate(180deg);
+    }
+
+    .collapsible-body {
+      display: grid;
+      grid-template-rows: 1fr;
+      transition: grid-template-rows 0.35s ease;
+      overflow: hidden;
+    }
+    .collapsible-body.collapsed {
+      grid-template-rows: 0fr;
+    }
+    .collapsible-inner {
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
   </style>
 </head>
 <body>
@@ -183,20 +226,31 @@
 
 <div id="panel">
   <div id="card-wrap">
-    <span>
-<h1>Czyja to działka? <span style="color:#999">(wersja testowa)</span></h1><span style="font-size:0.625rem; color:#000">
-      Masz pomysł na ulepszenia? <a href="mailto:cyrylski@gmail.com">Napisz do mnie</a>.</span>
- </span>
-    <div id="card">
-      <span class="hint">Dotknij dowolnego miejsca na mapie</span>
-    </div>
-    <div class="panel-footer">
-      <div class="footer-row" style="color:#4a5565">
-        <span>Wszystkie dane pochodzą z <a href="https://sipaplikacje.geopoz.poznan.pl/raporty/">GEOPOZu</a></span>
-        <div class="footer-meta" id="baza-info"></div>
+    <div class="card-header">
+      <div>
+        <h1>Czyja to działka? <span style="color:#999">(wersja testowa)</span></h1>
+        <span style="font-size:0.625rem; color:#000">Masz pomysł na ulepszenia? <a href="mailto:cyrylski@gmail.com">Napisz do mnie</a>.</span>
       </div>
-      <div class="footer-row" style="color:#000">
-        <span style="white-space:nowrap">Autor: <a href="https://www.linkedin.com/in/cyryl-kwasniewski/" target="_blank">Cyryl Kwaśniewski</a></span>
+      <button id="minimize-btn" aria-label="Zwiń panel">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+    </div>
+    <div class="collapsible-body">
+      <div class="collapsible-inner">
+        <div id="card">
+          <span class="hint">Dotknij dowolnego miejsca na mapie</span>
+        </div>
+        <div class="panel-footer">
+          <div class="footer-row" style="color:#4a5565">
+            <span>Wszystkie dane pochodzą z <a href="https://sipaplikacje.geopoz.poznan.pl/raporty/">GEOPOZu</a></span>
+            <div class="footer-meta" id="baza-info"></div>
+          </div>
+          <div class="footer-row" style="color:#000">
+            <span style="white-space:nowrap">Autor: <a href="https://www.linkedin.com/in/cyryl-kwasniewski/" target="_blank">Cyryl Kwaśniewski</a></span>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -383,6 +437,16 @@
       setCardContent('error', 'B\u0142\u0105d po\u0142\u0105czenia. Spr\u00f3buj ponownie.');
     }
   }
+
+  (function() {
+    const btn = document.getElementById('minimize-btn');
+    const body = document.querySelector('.collapsible-body');
+    btn.addEventListener('click', function() {
+      const isCollapsed = body.classList.toggle('collapsed');
+      btn.classList.toggle('collapsed', isCollapsed);
+      btn.setAttribute('aria-label', isCollapsed ? 'Rozwiń panel' : 'Zwiń panel');
+    });
+  })();
 
   function fadeRemoveCircle(circle) {
     const el = circle.getElement();

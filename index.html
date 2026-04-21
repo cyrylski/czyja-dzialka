@@ -325,7 +325,7 @@
 
       if (d.geometry) {
         parcelLayer = L.geoJSON({ type: 'Feature', geometry: d.geometry }, {
-          style: { color: '#1a4a8a', weight: 3, fillColor: '#2b6cb0', fillOpacity: 0.35 }
+          style: { color: '#2b6cb0', weight: 3, fillColor: '#4299e1', fillOpacity: 0.35 }
         }).addTo(map);
         const center = parcelLayer.getBounds().getCenter();
         L.tooltip({ permanent: true, direction: 'center', className: 'parcel-label' })

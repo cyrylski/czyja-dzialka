@@ -32,6 +32,7 @@ const isSkarb       = wlasc.indexOf('Skarb Państwa') !== -1;
 const isChurch      = wlasc.toLowerCase().indexOf('kościoły') !== -1
                    || wlasc.toLowerCase().indexOf('związki wyznaniowe') !== -1;
 const isMixedOwnership = isCityOwned && wlasc.indexOf('osoba fizyczna') !== -1;
+const isGminnaEntity  = !isCityOwned && !isSkarb && wlasc.toLowerCase().indexOf('gminna') !== -1;
 ```
 
 ---
@@ -107,6 +108,7 @@ in trwały zarząd.
 **Contrast with branch 13:** City-owned parcels in trwały zarząd use "jednostki
 miejskiej" only, since Miasto Poznań cannot grant trwały zarząd to state units.
 
+
 ### 8 — State parcel, other / fallback (`isSkarb`)
 **Display:** "Działka należy do Skarbu Państwa"  
 **Note:** "Brak danych o zarządcy — w razie pytań zwróć się do Wydziału
@@ -121,6 +123,19 @@ these.
 możesz zwrócić się do Wydziału Gospodarki Nieruchomościami..."  
 **Covers:** osoba fizyczna, spółka prywatna, cooperative, etc.  
 **Note:** `showWlasc = false` because the name is in the hero zone.
+
+### 9a — Gminna legal entity (`isGminnaEntity`)
+**Display:** "Działka należy do miejskiej spółki lub jednostki gminnej"  
+**Note:** "Właścicielem jest podmiot powiązany z Miastem Poznań. W sprawach
+dotyczących tej działki zwróć się do Wydziału Gospodarki Nieruchomościami UMP."  
+**Covers:** `"gminna osoba prawna"`, `"jednoosobowa spółka gminy"` — municipal
+companies and entities that are city-owned but are separate legal persons from
+Miasto Poznań.  
+**Rationale:** `isCityOwned` only matches `'Miasto Poznań'` literally; these
+entities don't contain that string. Without this branch they fall to branch 9
+with incorrect "Miasto nie jest właścicielem" copy.  
+**Flag:** `isGminnaEntity = !isCityOwned && !isSkarb && wlasc.toLowerCase().indexOf('gminna') !== -1`  
+**Note:** `showWlasc = true` so the entity name is visible in the data grid.
 
 ### 10 — City + private co-ownership, asset management (`isMixedOwnership && wlad contains 'Gospodarowanie zasobem'`)
 **Display:** "Działka ze współwłasnością Miasta i osób prywatnych"  
@@ -192,7 +207,12 @@ win). It maps `OZN_DZ` → `[{opis, sygnatura}]`.
    for this. In practice these parcels are unlikely to appear as individually
    clickable cadastre parcels.
 
-2. **XLSX is not auto-synced:** The powierzenie file requires a manual export
+2. **SP + Trwały zarząd not explicitly labelled:** Falls to branch 8 ("brak
+   danych o zarządcy → WGN") which is functionally correct but could be more
+   specific. A dedicated branch could be added between branches 7 and 8 if
+   needed.
+
+3. **XLSX is not auto-synced:** The powierzenie file requires a manual export
    from the municipal system. It may lag behind reality. The date in the
    filename is the only freshness indicator shown to the user.
 

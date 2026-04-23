@@ -54,6 +54,24 @@ Track every parcel lookup with: user IP address, reverse-geocoded geolocation, t
 
 Move the app off Render's free tier (which spins down after 15 minutes of inactivity and has no SLA) onto a proper production environment with persistent uptime, a custom domain, HTTPS, and a caching layer to reduce outbound calls to GEOPOZ and avoid IP-based rate limiting. See `PRODUCTION_PLAN.md` for the full step-by-step plan.
 
+### ZZM / green areas auto-detection via spatial intersection
+
+Automatically detect when a clicked parcel falls within a ZZM-managed park or green area, even when the parcel is absent from `powierzenia-YYYY-MM-DD.xlsx`.
+
+**Approach:**
+1. Fetch all ZZM park polygons from the Poznań city portal `class_objects` endpoint (`class_id=3338`) at app startup — stores 50 GeoJSON Point features (geometry only, no cadastral data currently linked in portal DB).
+2. Alternatively, query GUGIK (`uldk.gugik.gov.pl`) for the clicked parcel's geometry, then do a spatial intersection against the ZZM park polygon set.
+3. If the parcel centroid or outline intersects a ZZM park polygon → infer ZZM as manager (display with a note that this is inferred from spatial overlap, not a formal powierzenie record).
+
+**Status of research (2026-04-23):**  
+The Poznań city portal `object_parcel` endpoint returns empty features for all 50 ZZM parks — no cadastral linkage exists in the portal backend. The `class_objects` endpoint does return the park Point geometries. Full parcel polygon intersection would require GUGIK. See `POZNAN-API-RESEARCH.md` for complete API findings.
+
+**Trigger case:** Parcel `03/06/1/7` — confirmed ZZM park, not in powierzenia XLSX. GUGIK ID: `306401_1.0306.1/7`.
+
+**Estimated complexity:** medium-high. Requires GUGIK integration + polygon math (Turf.js or backend shapely).
+
+---
+
 ### Circle-to-parcel border morphing animation
 
 On parcel tap, animate the selection circle smoothly transitioning into the parcel's actual boundary outline. Uses flubber.js for SVG path interpolation between the circle marker and the GeoJSON polygon shape. Requires converting Leaflet's circleMarker from a `<circle>` SVG element to a `<path>`, projecting the GeoJSON polygon to screen coordinates, and cancelling the animation cleanly if the user taps another parcel mid-animation (hooks into the existing request token logic). Estimated complexity: medium (~1 day). Result would be a polished, app-like selection experience.

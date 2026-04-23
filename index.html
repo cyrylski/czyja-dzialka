@@ -448,7 +448,11 @@
       heroZone = '<div class="hero-label">T\u0105 dzia\u0142k\u0105 zarz\u0105dza</div>' +
         '<div class="hero-name">' + (p.opis || 'brak informacji') + '</div>' +
         numPow(p.sygnatura);
-    } else if (isRoads) {
+    } else if (isRoads && isCityOwned) {
+      heroZone = '<div class="hero-label">T\u0105 dzia\u0142k\u0105 zarz\u0105dza</div>' +
+        '<div class="hero-name">Zarz\u0105d Dr\u00f3g Miejskich</div>' +
+        '<div class="contextual-note" style="color:#888">(jednostka odpowiada tylko za utrzymanie pasa drogowego)</div>';
+    } else if (isRoads && !isCityOwned) {
       heroZone = '<div class="hero-label">T\u0105 dzia\u0142k\u0105 zarz\u0105dza</div>' +
         '<div class="hero-name">Zarz\u0105d Dr\u00f3g Miejskich</div>' +
         '<div class="contextual-note">Dzia\u0142ka ma innego w\u0142a\u015bciciela, ale ZDM odpowiada za utrzymanie pasa drogowego.</div>';
@@ -464,10 +468,6 @@
     } else if (wlad.indexOf('U\u017cytkowanie wieczyste') !== -1) {
       heroZone = '<div class="hero-label">Ta dzia\u0142ka jest dzier\u017cawiona</div>' +
         '<div class="contextual-note" style="color:#888">Najprawdopodobniej przez firm\u0119 lub osob\u0119 prywatn\u0105.</div>';
-    } else if (wlad.indexOf('Gospodarowanie zasobem') !== -1) {
-      heroZone = '<div class="hero-label">T\u0105 dzia\u0142k\u0105 zarz\u0105dza</div>' +
-        '<div class="hero-name">Zarz\u0105d Dr\u00f3g Miejskich</div>' +
-        '<div class="contextual-note" style="color:#888">(jednostka odpowiada tylko za utrzymanie pasa drogowego)</div>';
     } else {
       heroZone = '<div class="hero-label">T\u0105 dzia\u0142k\u0105 zarz\u0105dza</div>' +
         '<div class="hero-name">brak informacji</div>';

@@ -482,7 +482,7 @@
       (d.pow_ewd ? field('Powierzchnia', d.pow_ewd + '\u00a0ha') : '') +
       '</div>';
 
-    const rodzajMuted = !hasPow && !isMulti;
+    const rodzajMuted = !hasPow && !isMulti && wlad.indexOf('Gospodarowanie zasobem') === -1;
     const rodzajHtml = (wlad && wlad !== '\u2014')
       ? '<div class="field">' +
         '<div class="label">Rodzaj powierzenia</div>' +

@@ -429,6 +429,7 @@
     const isRoads = wlad.indexOf('dr\u00f3g publicznych') !== -1;
     const isCityOwned = wlasc.indexOf('Miasto Pozna\u0144') !== -1;
     const isChurch = wlasc.toLowerCase().indexOf('ko\u015bcio\u0142y') !== -1 || wlasc.toLowerCase().indexOf('zwi\u0105zki wyznaniowe') !== -1;
+    const isMixedOwnership = isCityOwned && wlasc.indexOf('osoba fizyczna') !== -1;
 
     let heroZone = '';
     let showWlasc = true;
@@ -465,6 +466,10 @@
       heroZone = '<div class="hero-label">T\u0105 dzia\u0142k\u0105 zarz\u0105dza</div>' +
         '<div class="hero-name orange">' + (wlasc || 'nieznany') + '</div>' +
         '<div class="contextual-note"><strong>Miasto nie jest jej w\u0142a\u015bcicielem.</strong> W sprawach dotycz\u0105cych tej dzia\u0142ki mo\u017cesz zwróci\u0107 si\u0119 do Wydzia\u0142u Gospodarki Nieruchomo\u015bciami Urz\u0119du Miasta Poznania.</div>';
+    } else if (isMixedOwnership && wlad.indexOf('Gospodarowanie zasobem') !== -1) {
+      showWlasc = false;
+      heroZone = '<div class="hero-label">Dzia\u0142ka ze wsp\u00f3\u0142w\u0142asno\u015bci\u0105 Miasta i os\u00f3b prywatnych</div>' +
+        '<div class="contextual-note" style="color:#888">To prawdopodobnie grunt pod budynkiem wielolokalowym (wsp\u00f3lnota mieszkaniowa)</div>';
     } else if (wlad.indexOf('Gospodarowanie zasobem') !== -1) {
       heroZone = '<div class="hero-label">T\u0105 dzia\u0142k\u0105 zarz\u0105dza</div>' +
         '<div class="hero-name">Wydzia\u0142 Gospodarki Nieruchomo\u015bciami</div>';

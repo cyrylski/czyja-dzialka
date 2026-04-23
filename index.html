@@ -428,6 +428,7 @@
     const hasPow  = powList.length >= 1;
     const isRoads = wlad.indexOf('dr\u00f3g publicznych') !== -1;
     const isCityOwned = wlasc.indexOf('Miasto Pozna\u0144') !== -1;
+    const isChurch = wlasc.toLowerCase().indexOf('ko\u015bcio\u0142y') !== -1 || wlasc.toLowerCase().indexOf('zwi\u0105zki wyznaniowe') !== -1;
 
     let heroZone = '';
     let showWlasc = true;
@@ -451,6 +452,10 @@
       heroZone = '<div class="hero-label">To dzia\u0142k\u0105 zarz\u0105dza</div>' +
         '<div class="hero-name">Zarz\u0105d Dr\u00f3g Miejskich</div>' +
         '<div class="contextual-note">Dzia\u0142ka ma innego w\u0142a\u015bciciela, ale ZDM odpowiada za utrzymanie pasa drogowego.</div>';
+    } else if (isChurch) {
+      showWlasc = false;
+      heroZone = '<div class="hero-label">W\u0142a\u015bcicielem dzia\u0142ki jest instytucja ko\u015bcielna</div>' +
+        '<div class="contextual-note" style="color:#888">(ko\u015bcio\u0142y lub zwi\u0105zki wyznaniowe)</div>';
     } else if (!isCityOwned) {
       showWlasc = false;
       heroZone = '<div class="hero-label">To dzia\u0142k\u0105 zarz\u0105dza</div>' +

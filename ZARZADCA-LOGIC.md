@@ -134,7 +134,7 @@ acts independently toward third parties.
 specific concession recorded.
 
 ### 13 — City parcel, trwały zarząd (`isCityOwned && wlad contains 'Trwały zarząd'`)
-**Display:** "Działka w trwałym zarządzie jednostki miejskiej lub państwowej"  
+**Display:** "Działka w trwałym zarządzie jednostki miejskiej"  
 **Note:** "W razie pytań zwróć się do Wydziału Gospodarki Nieruchomościami UMP."  
 **Legal basis:** Art. 43 UGN — trwały zarząd is a legal form of land holding
 by a *jednostka organizacyjna* (public organisational unit). Only public units

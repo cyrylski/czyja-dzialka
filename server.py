@@ -108,9 +108,50 @@ def get_klasouzytki(easting, northing):
 
 
 def coords_to_epsg2177(lon, lat):
-    from pyproj import Transformer
-    t = Transformer.from_crs('EPSG:4326', 'EPSG:2177', always_xy=True)
-    easting, northing = t.transform(lon, lat)
+    """WGS84 → EPSG:2177 (CS2000 zone 7, central meridian 21°E).
+    Pure-Python Transverse Mercator — no pyproj/PROJ required."""
+    import math
+    # GRS80 ellipsoid
+    a  = 6_378_137.0
+    f  = 1 / 298.257_222_101
+    b  = a * (1 - f)
+    e2 = 1 - (b / a) ** 2
+    e  = math.sqrt(e2)
+    # EPSG:2177 = ETRF2000-PL / CS2000/18  (zone 6, lon0=18°, k=0.999923, FE=6500000)
+    lon0 = math.radians(18.0)
+    k0   = 0.999923
+    FE   = 6_500_000.0
+    FN   = 0.0
+
+    phi = math.radians(lat)
+    lam = math.radians(lon)
+    dl  = lam - lon0
+
+    N   = a / math.sqrt(1 - e2 * math.sin(phi) ** 2)
+    t   = math.tan(phi)
+    eta2 = e2 / (1 - e2) * math.cos(phi) ** 2
+
+    # Meridional arc
+    n  = (a - b) / (a + b)
+    A0 = 1 + n**2/4 + n**4/64
+    A2 = 3/2  * (n - n**3/8)
+    A4 = 15/16 * (n**2 - n**4/4)
+    A6 = 35/48 * n**3
+    A8 = 315/512 * n**4
+    M  = a / (1 + n) * (A0*phi - A2*math.sin(2*phi) + A4*math.sin(4*phi)
+                        - A6*math.sin(6*phi) + A8*math.sin(8*phi))
+
+    # TM series (6th-order Helmert)
+    x = (k0 * N * (dl * math.cos(phi)
+         + dl**3/6   * math.cos(phi)**3 * (1 - t**2 + eta2)
+         + dl**5/120 * math.cos(phi)**5 * (5 - 18*t**2 + t**4 + 14*eta2 - 58*t**2*eta2)))
+    y = (k0 * (M + N * math.tan(phi) * (
+         dl**2/2 * math.cos(phi)**2
+         + dl**4/24 * math.cos(phi)**4 * (5 - t**2 + 9*eta2 + 4*eta2**2)
+         + dl**6/720 * math.cos(phi)**6 * (61 - 58*t**2 + t**4))))
+
+    easting  = FE + x
+    northing = FN + y
     return easting, northing
 
 

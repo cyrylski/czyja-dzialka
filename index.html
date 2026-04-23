@@ -481,6 +481,8 @@
     } else if (wlad.indexOf('U\u017cytkowanie wieczyste') !== -1) {
       heroZone = '<div class="hero-label">Ta dzia\u0142ka jest dzier\u017cawiona</div>' +
         '<div class="contextual-note" style="color:#888">Najprawdopodobniej przez firm\u0119 lub osob\u0119 prywatn\u0105.</div>';
+    } else if (isCityOwned && wlad.indexOf('Trwa\u0142y zarz\u0105d') !== -1) {
+      heroZone = '<div class="hero-label">Dzia\u0142ka w trwa\u0142ym zarz\u0105dzie jednostki miejskiej lub pa\u0144stwowej</div>';
     } else {
       heroZone = '<div class="hero-label">T\u0105 dzia\u0142k\u0105 zarz\u0105dza</div>' +
         '<div class="hero-name">brak informacji</div>';

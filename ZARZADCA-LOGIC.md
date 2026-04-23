@@ -97,6 +97,16 @@ it means the land is in the general SP resource managed by the Prezydent-as-Star
 **Note:** `showWlasc = true` so the user can see "Skarb Państwa" in the data
 grid alongside the contextual note.
 
+### 7b — State parcel, trwały zarząd (`isSkarb && wlad contains 'Trwały zarząd'`)
+**Display:** "Działka w trwałym zarządzie jednostki państwowej lub miejskiej"  
+**Note:** "W razie pytań zwróć się do Wydziału Gospodarki Nieruchomościami UMP."  
+**Rationale:** SP land in trwały zarząd may be held by a state unit (jednostka
+państwowa) or a city unit (e.g. a school or public institution) — hence both
+are named. WGN (acting as Starosta) is the supervisory contact for SP parcels
+in trwały zarząd.  
+**Contrast with branch 13:** City-owned parcels in trwały zarząd use "jednostki
+miejskiej" only, since Miasto Poznań cannot grant trwały zarząd to state units.
+
 ### 8 — State parcel, other / fallback (`isSkarb`)
 **Display:** "Działka należy do Skarbu Państwa"  
 **Note:** "Brak danych o zarządcy — w razie pytań zwróć się do Wydziału
@@ -182,12 +192,7 @@ win). It maps `OZN_DZ` → `[{opis, sygnatura}]`.
    for this. In practice these parcels are unlikely to appear as individually
    clickable cadastre parcels.
 
-2. **SP + Trwały zarząd not explicitly labelled:** Falls to branch 8 ("brak
-   danych o zarządcy → WGN") which is functionally correct but could be more
-   specific. A dedicated branch could be added between branches 7 and 8 if
-   needed.
-
-3. **XLSX is not auto-synced:** The powierzenie file requires a manual export
+2. **XLSX is not auto-synced:** The powierzenie file requires a manual export
    from the municipal system. It may lag behind reality. The date in the
    filename is the only freshness indicator shown to the user.
 

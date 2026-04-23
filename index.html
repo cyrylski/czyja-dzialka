@@ -469,6 +469,9 @@
     } else if (isSkarb && wlad.indexOf('Gospodarowanie zasobem') !== -1) {
       heroZone = '<div class="hero-label">Dzia\u0142k\u0105 zarz\u0105dza urz\u0105d lub jednostka Skarbu Pa\u0144stwa</div>' +
         '<div class="contextual-note" style="color:#888">Brak szczeg\u00f3\u0142owych danych \u2014 w razie pyta\u0144 zwr\u00f3\u0107 si\u0119 do Wydzia\u0142u Gospodarki Nieruchomo\u015bciami UMP.</div>';
+    } else if (isSkarb && wlad.indexOf('Trwa\u0142y zarz\u0105d') !== -1) {
+      heroZone = '<div class="hero-label">Dzia\u0142ka w trwa\u0142ym zarz\u0105dzie jednostki pa\u0144stwowej lub miejskiej</div>' +
+        '<div class="contextual-note" style="color:#888">W razie pyta\u0144 zwr\u00f3\u0107 si\u0119 do Wydzia\u0142u Gospodarki Nieruchomo\u015bciami UMP.</div>';
     } else if (isSkarb) {
       heroZone = '<div class="hero-label">Dzia\u0142ka nale\u017cy do Skarbu Pa\u0144stwa</div>' +
         '<div class="contextual-note" style="color:#888">Brak danych o zarz\u0105dcy \u2014 w razie pyta\u0144 zwr\u00f3\u0107 si\u0119 do Wydzia\u0142u Gospodarki Nieruchomo\u015bciami UMP.</div>';

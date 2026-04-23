@@ -451,11 +451,14 @@
       heroZone = '<div class="hero-label">To dzia\u0142k\u0105 zarz\u0105dza</div>' +
         '<div class="hero-name">Zarz\u0105d Dr\u00f3g Miejskich</div>' +
         '<div class="contextual-note">Dzia\u0142ka ma innego w\u0142a\u015bciciela, ale ZDM odpowiada za utrzymanie pasa drogowego.</div>';
-    } else {
+    } else if (!isCityOwned) {
       showWlasc = false;
       heroZone = '<div class="hero-label">To dzia\u0142k\u0105 zarz\u0105dza</div>' +
         '<div class="hero-name orange">' + (wlasc || 'nieznany') + '</div>' +
         '<div class="contextual-note"><strong>Miasto nie jest jej w\u0142a\u015bcicielem.</strong> W sprawach dotycz\u0105cych tej dzia\u0142ki mo\u017cesz zwróci\u0107 si\u0119 do Wydzia\u0142u Gospodarki Nieruchomo\u015bciami Urz\u0119du Miasta Poznania.</div>';
+    } else {
+      heroZone = '<div class="hero-label">To dzia\u0142k\u0105 zarz\u0105dza</div>' +
+        '<div class="hero-name">brak informacji</div>';
     }
 
     const dataGrid = '<div class="fields-row">' +

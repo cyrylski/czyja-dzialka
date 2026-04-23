@@ -430,10 +430,8 @@
     // Decision tree is evaluated top-to-bottom; first match wins. See ZARZADCA-LOGIC.md.
     const isMulti = powList.length > 1;
     const hasPow  = powList.length >= 1;
-    const isRoads = wlad.indexOf('dr\u00f3g publicznych') !== -1;
-    // Note: some road parcels have WLAD='Gospodarowanie zasobem...' due to stale EGIB records
-    // and will NOT match isRoads. NRD field from GEOPOZ is parcel-number suffix, not road indicator.
-    // Only fix: add the parcel to powierzenia XLSX with opis='Zarząd Dróg Miejskich'.
+    // isRoads: WLAD contains 'dróg publicznych' OR KLASOUZYTKI_EGIB === 'dr' (catches stale WLAD records)
+    const isRoads = wlad.indexOf('dr\u00f3g publicznych') !== -1 || d.klasouzytki === 'dr';
     const isCityOwned = wlasc.indexOf('Miasto Pozna\u0144') !== -1;
     const isSkarb = wlasc.indexOf('Skarb Pa\u0144stwa') !== -1;
     const isChurch = wlasc.toLowerCase().indexOf('ko\u015bcio\u0142y') !== -1 || wlasc.toLowerCase().indexOf('zwi\u0105zki wyznaniowe') !== -1;

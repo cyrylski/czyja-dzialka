@@ -52,9 +52,10 @@ Legal basis: Art. 19 ust. 5 UoDP — ZDM acts on behalf of Prezydent Miasta.
 | Rodzaj powierzenia | Wykonywanie zadań zarządcy dróg publicznych |
 | Shown as | Tą działką zarządza **Zarząd Dróg Miejskich** |
 
-⚠ **Known gap:** Road parcels where WLAD is `'Gospodarowanie zasobem...'` instead of the
-expected road management string (stale EGIB records) will miss this branch and fall to
-branch 11 (WGN). Fix: add to powierzenia XLSX with `opis='Zarząd Dróg Miejskich'`.
+**isRoads trigger:** `WLAD` contains `'dróg publicznych'` **OR** `KLASOUZYTKI_EGIB === 'dr'`.
+The second trigger catches road parcels with a stale WLAD (e.g. "Gospodarowanie zasobem...")
+that would otherwise fall through to branch 11 (WGN).
+Test case: parcel 04/13/4/473 (ul. Piotra Tomickiego) — now correctly shows ZDM.
 
 ---
 

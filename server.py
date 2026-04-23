@@ -236,7 +236,7 @@ def dzialka():
         'nrd':          p.get('NRD', '\u2014'),
         'wlasc':        (p.get('WLASC') or '').strip().rstrip(',') or '\u2014',
         'wlad':         (p.get('WLAD') or '').strip().lstrip('- ').rstrip(',') or '\u2014',
-        'klasouzytki':  (p.get('KLASOUZYTKI_EGIB') or '').strip(),
+        'kolor_map':    p.get('KOLOR_MAP', None),
         'pow_ewd':      str(p.get('POW_EWD', '\u2014')),
         'adres':        p.get('ADRES_DZIALKI', '\u2014'),
         'pow_list':     pow_list,

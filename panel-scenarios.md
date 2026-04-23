@@ -52,10 +52,10 @@ Legal basis: Art. 19 ust. 5 UoDP — ZDM acts on behalf of Prezydent Miasta.
 | Rodzaj powierzenia | Wykonywanie zadań zarządcy dróg publicznych |
 | Shown as | Tą działką zarządza **Zarząd Dróg Miejskich** |
 
-**isRoads trigger:** `WLAD` contains `'dróg publicznych'` **OR** `KLASOUZYTKI_EGIB === 'dr'`.
-The second trigger catches road parcels with a stale WLAD (e.g. "Gospodarowanie zasobem...")
-that would otherwise fall through to branch 11 (WGN).
-Test case: parcel 04/13/4/473 (ul. Piotra Tomickiego) — now correctly shows ZDM.
+**isRoads trigger:** `WLAD` contains `'dróg publicznych'` **OR** `KOLOR_MAP === 13 && WLAD contains 'Gospodarowanie zasobem'`.
+`KOLOR_MAP=13` is GEOPOZ's render code for road parcels and stays correct even when WLAD is stale.
+The compound condition avoids false positives on non-road parcels that share the same WLAD string.
+Test case: parcel 04/13/4/473 (ul. Piotra Tomickiego) — previously routed to WGN, now correctly shows ZDM.
 
 ---
 

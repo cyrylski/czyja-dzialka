@@ -10,7 +10,8 @@ from datetime import datetime
 
 app = Flask(__name__, static_folder='.')
 
-GEOSERVER = 'https://wms2.geopoz.poznan.pl/geoserver/egib/ows'
+GEOSERVER   = 'https://wms2.geopoz.poznan.pl/geoserver/egib/ows'
+PORTAL_WMS  = 'https://portal.geopoz.poznan.pl/wmsegib'
 
 # --- Powierzenia ---
 
@@ -75,6 +76,36 @@ POWIERZENIA, POWIERZENIA_DATA = load_powierzenia()
 
 
 # --- Helpers ---
+
+def get_klasouzytki(easting, northing):
+    """Query portal.geopoz.poznan.pl/wmsegib for KLASOUZYTKI_EGIB land-use code (e.g. 'dr' for roads)."""
+    try:
+        delta = 100
+        east_min, east_max = easting - delta, easting + delta
+        north_min, north_max = northing - delta, northing + delta
+        width = height = 800
+        i = int((easting - east_min) / (east_max - east_min) * width)
+        j = int((north_max - northing) / (north_max - north_min) * height)
+        params = {
+            'SERVICE': 'WMS', 'VERSION': '1.3.0', 'REQUEST': 'GetFeatureInfo',
+            'LAYERS': 'dzialki', 'QUERY_LAYERS': 'dzialki',
+            'STYLES': '', 'INFO_FORMAT': 'text/html', 'FEATURE_COUNT': '1',
+            'CRS': 'EPSG:2177',
+            'BBOX': f'{north_min},{east_min},{north_max},{east_max}',
+            'WIDTH': width, 'HEIGHT': height, 'I': i, 'J': j,
+        }
+        r = requests.get(PORTAL_WMS, params=params, timeout=5)
+        if r.status_code == 200:
+            headers = re.findall(r'<th>([^<]+)</th>', r.text)
+            values  = re.findall(r'<td>([^<]*)</td>', r.text)
+            if 'KLASOUZYTKI_EGIB' in headers and values:
+                idx = headers.index('KLASOUZYTKI_EGIB')
+                if idx < len(values):
+                    return values[idx].strip()
+    except Exception as e:
+        print(f'[PORTAL WMS] exception: {e}')
+    return ''
+
 
 def coords_to_epsg2177(lon, lat):
     from pyproj import Transformer
@@ -208,35 +239,46 @@ def dzialka():
 
     pow_list = POWIERZENIA.get(ozn_dz, [])
 
-    # WFS — pobierz geometrię działki przez przecięcie z punktem kliknięcia.
-    # Używamy SRID=4326;POINT w EWKT, bo CQL_FILTER domyślnie przyjmuje CRS warstwy (EPSG:2177).
-    geometry = None
-    try:
-        wfs_params = {
-            'SERVICE':      'WFS',
-            'VERSION':      '2.0.0',
-            'REQUEST':      'GetFeature',
-            'TYPENAMES':    'egib:dzialki_ewidencyjne_sql',
-            'OUTPUTFORMAT': 'application/json',
-            'SRSNAME':      'CRS:84',
-            'CQL_FILTER':   f'INTERSECTS(SHAPE,SRID=4326;POINT({lon} {lat}))',
-            'COUNT':        '1',
-        }
-        wfs_r = requests.get(GEOSERVER, params=wfs_params, timeout=15)
-        if wfs_r.status_code == 200:
-            wfs_data = wfs_r.json()
-            wfs_features = wfs_data.get('features', [])
-            if wfs_features:
-                geometry = wfs_features[0].get('geometry')
-    except Exception as e:
-        print(f"[WFS] exception: {e}")
+    # WFS (geometry) and portal KLASOUZYTKI_EGIB lookup run concurrently.
+    geometry     = None
+    klasouzytki  = ''
+
+    def _fetch_wfs():
+        nonlocal geometry
+        try:
+            wfs_params = {
+                'SERVICE':      'WFS',
+                'VERSION':      '2.0.0',
+                'REQUEST':      'GetFeature',
+                'TYPENAMES':    'egib:dzialki_ewidencyjne_sql',
+                'OUTPUTFORMAT': 'application/json',
+                'SRSNAME':      'CRS:84',
+                'CQL_FILTER':   f'INTERSECTS(SHAPE,SRID=4326;POINT({lon} {lat}))',
+                'COUNT':        '1',
+            }
+            wfs_r = requests.get(GEOSERVER, params=wfs_params, timeout=15)
+            if wfs_r.status_code == 200:
+                wfs_features = wfs_r.json().get('features', [])
+                if wfs_features:
+                    geometry = wfs_features[0].get('geometry')
+        except Exception as e:
+            print(f'[WFS] exception: {e}')
+
+    def _fetch_klasouzytki():
+        nonlocal klasouzytki
+        klasouzytki = get_klasouzytki(easting, northing)
+
+    t_wfs  = threading.Thread(target=_fetch_wfs)
+    t_klas = threading.Thread(target=_fetch_klasouzytki)
+    t_wfs.start(); t_klas.start()
+    t_wfs.join();  t_klas.join()
 
     result = {
         'ozn_dz':       ozn_dz or '\u2014',
         'nrd':          p.get('NRD', '\u2014'),
         'wlasc':        (p.get('WLASC') or '').strip().rstrip(',') or '\u2014',
         'wlad':         (p.get('WLAD') or '').strip().lstrip('- ').rstrip(',') or '\u2014',
-        'kolor_map':    p.get('KOLOR_MAP', None),
+        'klasouzytki':  klasouzytki,
         'pow_ewd':      str(p.get('POW_EWD', '\u2014')),
         'adres':        p.get('ADRES_DZIALKI', '\u2014'),
         'pow_list':     pow_list,

@@ -52,9 +52,9 @@ Legal basis: Art. 19 ust. 5 UoDP — ZDM acts on behalf of Prezydent Miasta.
 | Rodzaj powierzenia | Wykonywanie zadań zarządcy dróg publicznych |
 | Shown as | Tą działką zarządza **Zarząd Dróg Miejskich** |
 
-**isRoads trigger:** `WLAD` contains `'dróg publicznych'` **OR** `KOLOR_MAP === 13 && WLAD contains 'Gospodarowanie zasobem'`.
-`KOLOR_MAP=13` is GEOPOZ's render code for road parcels and stays correct even when WLAD is stale.
-The compound condition avoids false positives on non-road parcels that share the same WLAD string.
+**isRoads trigger:** `WLAD` contains `'dróg publicznych'` **OR** `KLASOUZYTKI_EGIB === 'dr'`.
+`KLASOUZYTKI_EGIB` is fetched from `portal.geopoz.poznan.pl/wmsegib` (concurrent with the WFS geometry call).
+It is set at the classification level and stays `'dr'` even when `WLAD` is stale.
 Test case: parcel 04/13/4/473 (ul. Piotra Tomickiego) — previously routed to WGN, now correctly shows ZDM.
 
 ---

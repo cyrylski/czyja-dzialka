@@ -23,38 +23,37 @@
       z-index: 1000;
     }
 
-    h1 {
-      font-size: 1.75rem;
-      font-weight: 700;
-      color: #101828;
-      letter-spacing: 0.37px;
-    }
-
     #card-wrap {
+      position: relative;
       background: white;
       border-radius: 16px 16px 0 0;
       box-shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.1);
       padding: 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
     }
 
     #card {
-      min-height: 80px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      min-height: 60px;
+      padding-right: 36px;
     }
 
-    #card.loading { color: #888; font-size: 0.875rem; }
-    #card.error   { color: #e53e3e; font-size: 0.875rem; }
+    #card.loading {
+      display: flex;
+      align-items: center;
+      color: #888;
+      font-size: 0.875rem;
+    }
+    #card.error {
+      display: flex;
+      align-items: center;
+      color: #e53e3e;
+      font-size: 0.875rem;
+    }
 
     .field {
       display: flex;
       flex-direction: column;
       gap: 4px;
-      margin-bottom: 20px;
+      margin-bottom: 16px;
     }
     .field:last-child { margin-bottom: 0; }
 
@@ -65,49 +64,46 @@
       letter-spacing: 0.2px;
       color: #999;
     }
-    .value {
-      font-size: 0.875rem;
-      color: #101828;
-    }
-    .value.sm  { font-size: 0.75rem; }
-    .value.big { font-size: 1.375rem; font-weight: 600; color: #2b6cb0; }
-    .value.pow { font-size: 0.875rem; color: #000; letter-spacing: 0.3955px; }
+    .value { font-size: 0.875rem; color: #101828; }
+    .value.parcel-id { font-size: 1rem; font-weight: 700; color: #101828; }
+    .value.rodzaj { font-size: 0.75rem; }
+    .value.muted { color: #9ca3af; }
 
-    .hint {
-      font-size: 0.8125rem;
-      color: #888;
-      text-align: center;
-    }
 
     .fields-row {
       display: flex;
-      gap: 20px;
-      margin-bottom: 20px;
+      gap: 16px;
+      margin-bottom: 16px;
     }
     .fields-row:last-child { margin-bottom: 0; }
     .fields-row .field { flex: 1; margin-bottom: 0; }
 
+    .card-divider { border: none; border-top: 1px solid #e5e7eb; margin: 0 0 16px; }
+
+    .hero-label { font-size: 0.875rem; font-weight: 600; color: #101828; margin-bottom: 5px; }
+    .hero-name { font-size: 1.375rem; font-weight: 700; color: #2b6cb0; margin-bottom: 4px; }
+    .hero-name.orange { color: #b7791f; }
+    .contextual-note { font-size: 0.8125rem; color: #101828; line-height: 1.5; margin-bottom: 6px; }
+
+    .numer-pow { margin-bottom: 10px; }
+    .numer-pow .label { display: inline; }
+    .numer-pow-value { font-size: 0.75rem; color: #4a5568; }
+
+    .units-grid { display: flex; flex-wrap: wrap; gap: 0 16px; }
+    .unit-entry { flex: 1; min-width: 45%; margin-bottom: 10px; }
+    .unit-entry .hero-name { font-size: 1rem; margin-bottom: 2px; }
+    .unit-entry .numer-pow { margin-bottom: 0; }
+    .unit-entry .numer-pow .label { display: block; }
+    .unit-entry .numer-pow-value { display: block; }
+
     .panel-footer {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      border-top: 1px solid rgba(153,153,153,0.5);
-      padding-top: 20px;
+      border-top: 1px solid rgba(153,153,153,0.3);
+      padding-top: 12px;
+      font-size: 0.75rem;
+      color: #6b7280;
     }
-    .footer-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 0.625rem;
-      gap: 16px;
-    }
-    .footer-row a { color: inherit; text-decoration: underline; }
-    .footer-meta {
-      font-size: 0.625rem;
-      color: #999;
-      text-align: right;
-      white-space: nowrap;
-    }
+    .footer-block { display: inline-block; margin-right: 16px; }
+    .footer-block a { color: inherit; text-decoration: underline; }
 
     .parcel-label {
       background: white;
@@ -121,20 +117,6 @@
     }
     .parcel-label::before { display: none; }
 
-    .tap-hint {
-      position: absolute;
-      bottom: 12px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(0,0,0,0.6);
-      color: white;
-      padding: 8px 16px;
-      border-radius: 20px;
-      font-size: 13px;
-      pointer-events: none;
-      white-space: nowrap;
-      z-index: 1000;
-    }
 
     @keyframes spin {
       to { transform: rotate(360deg); }
@@ -158,31 +140,85 @@
       box-shadow: 0 1px 5px rgba(0,0,0,0.35);
     }
 
+    @keyframes parcelFadeIn {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+    .parcel-entering {
+      animation: parcelFadeIn 0.45s ease forwards;
+    }
+    @keyframes circleFadeOut {
+      to { opacity: 0; }
+    }
+    .circle-fading {
+      animation: circleFadeOut 0.3s ease forwards;
+    }
+
+    #minimize-btn {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px;
+      color: #999;
+      display: flex;
+      align-items: center;
+      transition: color 0.2s;
+    }
+    #minimize-btn:hover { color: #555; }
+    #minimize-btn svg {
+      transition: transform 0.35s ease;
+    }
+    #minimize-btn.collapsed svg {
+      transform: rotate(180deg);
+    }
+
+    .collapsible-body {
+      display: grid;
+      grid-template-rows: 1fr;
+      transition: grid-template-rows 0.35s ease;
+      overflow: hidden;
+    }
+    .collapsible-body.collapsed {
+      grid-template-rows: 0fr;
+    }
+    .collapsible-inner {
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
   </style>
 </head>
 <body>
 
 <div id="map-wrap">
   <div id="map"></div>
-  <div class="tap-hint" id="tap-hint">Dotknij mapę, aby sprawdzić działkę</div>
 </div>
 
 <div id="panel">
   <div id="card-wrap">
-    <span>
-<h1>Czyja to działka? <span style="color:#999">(wersja testowa)</span></h1><span style="font-size:0.625rem; color:#000">
-      Masz pomysł na ulepszenia? <a href="mailto:cyrylski@gmail.com">Napisz do mnie</a>.</span>
- </span>
-    <div id="card">
-      <span class="hint">Dotknij dowolnego miejsca na mapie</span>
-    </div>
-    <div class="panel-footer">
-      <div class="footer-row" style="color:#4a5565">
-        <span>Wszystkie dane pochodzą z <a href="https://sipaplikacje.geopoz.poznan.pl/raporty/">GEOPOZu</a></span>
-        <div class="footer-meta" id="baza-info"></div>
-      </div>
-      <div class="footer-row" style="color:#000">
-        <span style="white-space:nowrap">Autor: <a href="https://www.linkedin.com/in/cyryl-kwasniewski/" target="_blank">Cyryl Kwaśniewski</a></span>
+    <button id="minimize-btn" aria-label="Zwiń panel">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+    <div class="collapsible-body">
+      <div class="collapsible-inner">
+        <div id="card">
+          <div style="width:100%">
+            <div class="hero-label">Czyja to dzia&#322;ka?</div>
+            <div class="contextual-note" style="color:#888">Dotknij dowolnego miejsca na mapie aby sprawdzi&#263; zarz&#261;dc&#281;</div>
+          </div>
+        </div>
+        <div class="panel-footer">
+          <span class="footer-block">Wszystkie dane pochodzą z <a href="https://sipaplikacje.geopoz.poznan.pl/raporty/">GEOPOZu</a></span>
+          <span class="footer-block" id="baza-info"></span>
+          <span class="footer-block">Autor: <a href="https://www.linkedin.com/in/cyryl-kwasniewski/" target="_blank">Cyryl Kwaśniewski</a></span>
+        </div>
       </div>
     </div>
   </div>
@@ -244,7 +280,6 @@
   let parcelLayer = null;
   let selectionCircle = null;
   const card = document.getElementById('card');
-  const tapHint = document.getElementById('tap-hint');
 
   let requestToken = 0;
 
@@ -307,7 +342,6 @@
       fillOpacity: 0.15
     }).addTo(map);
 
-    tapHint.style.display = 'none';
     setCardContent('loading', '<div style="display:flex;align-items:center;gap:10px"><div class="spinner"></div><span>Pobieranie danych\u2026</span></div>');
 
     try {
@@ -315,7 +349,7 @@
       if (myToken !== requestToken) return;
       const d = await res.json();
 
-      if (selectionCircle) { selectionCircle.remove(); selectionCircle = null; }
+      if (selectionCircle) { fadeRemoveCircle(selectionCircle); selectionCircle = null; }
 
       if (d.error) {
         setCardContent('error', d.error);
@@ -324,7 +358,7 @@
 
       if (d.geometry) {
         parcelLayer = L.geoJSON({ type: 'Feature', geometry: d.geometry }, {
-          style: { color: '#2b6cb0', weight: 3, fillColor: '#4299e1', fillOpacity: 0.35 }
+          style: { color: '#2b6cb0', weight: 3, fillColor: '#4299e1', fillOpacity: 0.35, className: 'parcel-entering' }
         }).addTo(map);
         const center = parcelLayer.getBounds().getCenter();
         L.tooltip({ permanent: true, direction: 'center', className: 'parcel-label' })
@@ -338,43 +372,148 @@
         }).addTo(map);
       }
 
-      const zarzadca = d.pow_opis === 'brak informacji' && d.wlad === 'Wykonywanie zada\u0144 zarz\u0105dcy dr\u00f3g publicznych'
-        ? 'Prawdopodobnie Zarz\u0105d Dr\u00f3g Miejskich<br><span style="color:#555;font-size:12px">(brak informacji w danych GEOPOZu)</span>'
-        : d.pow_opis;
+      const bazaEl = document.getElementById('baza-info');
+      if (bazaEl && d.baza_data) bazaEl.textContent = 'Zaktualizowano: ' + d.baza_data;
 
-      if (d.baza_data) {
-        document.getElementById('baza-info').textContent = 'Ostatnia aktualizacja bazy: ' + d.baza_data;
-      }
-
-      const secondRow = d.pow_syg
-        ? '<div class="fields-row">' + field('Rodzaj zarz\u0105dzania', d.wlad, 'sm') + field('Sygnatura powierzenia', d.pow_syg, 'sm') + '</div>'
-        : field('Rodzaj zarz\u0105dzania', d.wlad, 'sm');
-
-      setCardContent('',
-        '<div style="width:100%">' +
-        '<div class="fields-row" style="align-items:center">' +
-        field('Numer dzia\u0142ki', d.ozn_dz, 'big') +
-        (d.pow_ewd ? field('Powierzchnia', d.pow_ewd + ' ha', 'pow') : '') +
-        '</div>' +
-        '<div class="fields-row">' +
-        field('W\u0142a\u015bciciel', d.wlasc) +
-        field('Zarz\u0105dca', zarzadca) +
-        '</div>' +
-        secondRow +
-        '</div>');
+      setCardContent('', buildCard(d));
 
     } catch(err) {
       if (myToken !== requestToken) return;
-      if (selectionCircle) { selectionCircle.remove(); selectionCircle = null; }
+      if (selectionCircle) { fadeRemoveCircle(selectionCircle); selectionCircle = null; }
       setCardContent('error', 'B\u0142\u0105d po\u0142\u0105czenia. Spr\u00f3buj ponownie.');
     }
   }
 
-  function field(label, value, size) {
+  (function() {
+    const btn = document.getElementById('minimize-btn');
+    const body = document.querySelector('.collapsible-body');
+    btn.addEventListener('click', function() {
+      const isCollapsed = body.classList.toggle('collapsed');
+      btn.classList.toggle('collapsed', isCollapsed);
+      btn.setAttribute('aria-label', isCollapsed ? 'Rozwiń panel' : 'Zwiń panel');
+    });
+  })();
+
+  function fadeRemoveCircle(circle) {
+    const el = circle.getElement();
+    if (el) {
+      el.classList.add('circle-fading');
+      setTimeout(() => circle.remove(), 300);
+    } else {
+      circle.remove();
+    }
+  }
+
+  function field(label, value, cls) {
     if (!value || value === '\u2014' || value === 'null') return '';
     return '<div class="field">' +
       '<div class="label">' + label + '</div>' +
-      '<div class="value' + (size ? ' ' + size : '') + '">' + value + '</div>' +
+      '<div class="value' + (cls ? ' ' + cls : '') + '">' + value + '</div>' +
+      '</div>';
+  }
+
+  function numPow(sygnatura) {
+    if (!sygnatura) return '';
+    return '<div class="numer-pow">' +
+      '<span class="label">Numer powierzenia:</span>' +
+      '<span class="numer-pow-value"> ' + sygnatura + '</span>' +
+      '</div>';
+  }
+
+  function buildCard(d) {
+    const powList = d.pow_list || [];
+    const wlad = d.wlad || '';
+    const wlasc = d.wlasc || '';
+    const isMulti = powList.length > 1;
+    const hasPow  = powList.length >= 1;
+    const isRoads = wlad.indexOf('dr\u00f3g publicznych') !== -1;
+    const isCityOwned = wlasc.indexOf('Miasto Pozna\u0144') !== -1;
+    const isSkarb = wlasc.indexOf('Skarb Pa\u0144stwa') !== -1;
+    const isChurch = wlasc.toLowerCase().indexOf('ko\u015bcio\u0142y') !== -1 || wlasc.toLowerCase().indexOf('zwi\u0105zki wyznaniowe') !== -1;
+    const isMixedOwnership = isCityOwned && wlasc.indexOf('osoba fizyczna') !== -1;
+
+    let heroZone = '';
+    let showWlasc = true;
+
+    if (isMulti) {
+      heroZone = '<div class="hero-label">T\u0105 dzia\u0142k\u0105 zarz\u0105dza kilka jednostek:</div>' +
+        '<div class="units-grid">' +
+        powList.map(function(p) {
+          return '<div class="unit-entry">' +
+            '<div class="hero-name">' + (p.opis || 'brak informacji') + '</div>' +
+            numPow(p.sygnatura) +
+            '</div>';
+        }).join('') +
+        '</div>';
+    } else if (hasPow) {
+      const p = powList[0];
+      heroZone = '<div class="hero-label">T\u0105 dzia\u0142k\u0105 zarz\u0105dza</div>' +
+        '<div class="hero-name">' + (p.opis || 'brak informacji') + '</div>' +
+        numPow(p.sygnatura);
+    } else if (isRoads && isCityOwned) {
+      heroZone = '<div class="hero-label">T\u0105 dzia\u0142k\u0105 zarz\u0105dza</div>' +
+        '<div class="hero-name">Zarz\u0105d Dr\u00f3g Miejskich</div>' +
+        '<div class="contextual-note" style="color:#888">(jednostka odpowiada za utrzymanie pasa drogowego)</div>';
+    } else if (isRoads && !isCityOwned) {
+      heroZone = '<div class="hero-label">T\u0105 dzia\u0142k\u0105 zarz\u0105dza</div>' +
+        '<div class="hero-name">Zarz\u0105d Dr\u00f3g Miejskich</div>' +
+        '<div class="contextual-note">Dzia\u0142ka ma innego w\u0142a\u015bciciela, ale ZDM odpowiada za utrzymanie pasa drogowego.</div>';
+    } else if (isChurch) {
+      showWlasc = false;
+      heroZone = '<div class="hero-label">W\u0142a\u015bcicielem i zarz\u0105dc\u0105 dzia\u0142ki jest</div>' +
+        '<div class="hero-name">' + (wlasc || 'instytucja ko\u015bcielna') + '</div>' +
+        '<div class="contextual-note" style="color:#888">(ko\u015bcio\u0142y i zwi\u0105zki wyznaniowe zarz\u0105dzaj\u0105 w\u0142asno\u015bci\u0105 samodzielnie)</div>';
+    } else if (isSkarb && wlad.indexOf('U\u017cytkowanie wieczyste') !== -1) {
+      heroZone = '<div class="hero-label">Dzia\u0142ka Skarbu Pa\u0144stwa w u\u017cytkowaniu wieczystym</div>' +
+        '<div class="contextual-note" style="color:#888">Grunt oddany miastu lub podmiotowi prywatnemu. Szczeg\u00f3\u0142y: Wydzia\u0142 Gospodarki Nieruchomo\u015bciami UMP.</div>';
+    } else if (isSkarb && wlad.indexOf('Gospodarowanie zasobem') !== -1) {
+      heroZone = '<div class="hero-label">Dzia\u0142k\u0105 zarz\u0105dza urz\u0105d lub jednostka Skarbu Pa\u0144stwa</div>' +
+        '<div class="contextual-note" style="color:#888">Brak szczeg\u00f3\u0142owych danych \u2014 w razie pyta\u0144 zwr\u00f3\u0107 si\u0119 do Wydzia\u0142u Gospodarki Nieruchomo\u015bciami UMP.</div>';
+    } else if (isSkarb) {
+      heroZone = '<div class="hero-label">Dzia\u0142ka nale\u017cy do Skarbu Pa\u0144stwa</div>' +
+        '<div class="contextual-note" style="color:#888">Brak danych o zarz\u0105dcy \u2014 w razie pyta\u0144 zwr\u00f3\u0107 si\u0119 do Wydzia\u0142u Gospodarki Nieruchomo\u015bciami UMP.</div>';
+    } else if (!isCityOwned) {
+      showWlasc = false;
+      heroZone = '<div class="hero-label">T\u0105 dzia\u0142k\u0105 zarz\u0105dza</div>' +
+        '<div class="hero-name orange">' + (wlasc || 'nieznany') + '</div>' +
+        '<div class="contextual-note"><strong>Miasto nie jest jej w\u0142a\u015bcicielem.</strong> W sprawach dotycz\u0105cych tej dzia\u0142ki mo\u017cesz zwr\u00f3ci\u0107 si\u0119 do Wydzia\u0142u Gospodarki Nieruchomo\u015bciami Urz\u0119du Miasta Poznania.</div>';
+    } else if (isMixedOwnership && wlad.indexOf('Gospodarowanie zasobem') !== -1) {
+      showWlasc = false;
+      heroZone = '<div class="hero-label">Dzia\u0142ka ze wsp\u00f3\u0142w\u0142asno\u015bci\u0105 Miasta i os\u00f3b prywatnych</div>' +
+        '<div class="contextual-note" style="color:#888">To prawdopodobnie grunt pod budynkiem wielolokalowym (wsp\u00f3lnota mieszkaniowa)</div>';
+    } else if (wlad.indexOf('Gospodarowanie zasobem') !== -1) {
+      heroZone = '<div class="hero-label">T\u0105 dzia\u0142k\u0105 zarz\u0105dza</div>' +
+        '<div class="hero-name">Wydzia\u0142 Gospodarki Nieruchomo\u015bciami</div>';
+    } else if (wlad.indexOf('U\u017cytkowanie wieczyste') !== -1) {
+      heroZone = '<div class="hero-label">Dzia\u0142ka w u\u017cytkowaniu wieczystym</div>' +
+        '<div class="contextual-note" style="color:#888">Grunt miejski oddany w u\u017cytkowanie wieczyste \u2014 najprawdopodobniej wsp\u00f3lnocie, firmie lub osobie prywatnej.</div>';
+    } else if (isCityOwned && wlad.indexOf('Trwa\u0142y zarz\u0105d') !== -1) {
+      heroZone = '<div class="hero-label">Dzia\u0142ka w trwa\u0142ym zarz\u0105dzie jednostki miejskiej lub pa\u0144stwowej</div>' +
+        '<div class="contextual-note" style="color:#888">W razie pyta\u0144 zwr\u00f3\u0107 si\u0119 do Wydzia\u0142u Gospodarki Nieruchomo\u015bciami UMP.</div>';
+    } else {
+      heroZone = '<div class="hero-label">T\u0105 dzia\u0142k\u0105 zarz\u0105dza</div>' +
+        '<div class="hero-name">brak informacji</div>';
+    }
+
+    const dataGrid = '<div class="fields-row">' +
+      field('Numer dzia\u0142ki', d.ozn_dz, 'parcel-id') +
+      (showWlasc ? field('W\u0142a\u015bciciel', wlasc) : '') +
+      (d.pow_ewd ? field('Powierzchnia', d.pow_ewd + '\u00a0ha') : '') +
+      '</div>';
+
+    const rodzajHtml = (wlad && wlad !== '\u2014')
+      ? '<div class="field">' +
+        '<div class="label">Rodzaj powierzenia</div>' +
+        '<div class="value rodzaj">' + wlad + '</div>' +
+        '</div>'
+      : '';
+
+    return '<div style="width:100%">' +
+      heroZone +
+      '<hr class="card-divider">' +
+      dataGrid +
+      '<hr class="card-divider">' +
+      rodzajHtml +
       '</div>';
   }
 </script>

@@ -3,6 +3,9 @@ import requests
 import os
 import glob
 import re
+import smtplib
+import threading
+from email.mime.text import MIMEText
 from datetime import datetime
 
 app = Flask(__name__, static_folder='.')
@@ -53,10 +56,13 @@ def load_powierzenia():
             ozn = str(row[idx_ozn]).strip() if row[idx_ozn] else None
             if not ozn or ozn == 'None':
                 continue
-            data[ozn] = {
+            entry = {
                 'opis':      str(row[idx_opis]).strip() if row[idx_opis] else '',
                 'sygnatura': str(row[idx_syg]).strip()  if row[idx_syg]  else '',
             }
+            if ozn not in data:
+                data[ozn] = []
+            data[ozn].append(entry)
         print(f"[POWIERZENIA] Wczytano {len(data)} rekordów z {os.path.basename(filepath)}")
         return data, date_str
     except Exception as e:
@@ -79,6 +85,50 @@ def coords_to_epsg2177(lon, lat):
 
 _LOG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'analytics.log')
 
+_EMAIL_FROM = os.environ.get('LOG_EMAIL_FROM', '')
+_EMAIL_PASS = os.environ.get('LOG_EMAIL_PASSWORD', '')
+_EMAIL_TO   = os.environ.get('LOG_EMAIL_TO', '')
+
+
+def _geo_lookup(ip):
+    try:
+        r = requests.get(
+            f'http://ip-api.com/json/{ip}',
+            params={'fields': 'city,country'},
+            timeout=2,
+        )
+        if r.status_code == 200:
+            d = r.json()
+            city, country = d.get('city', ''), d.get('country', '')
+            return f"{city}, {country}".strip(', ')
+    except Exception:
+        pass
+    return ''
+
+
+def _send_log_email(ozn_dz, ip, ua, ts):
+    if not all([_EMAIL_FROM, _EMAIL_PASS, _EMAIL_TO]):
+        return
+    location = _geo_lookup(ip)
+    loc_str = f'  ({location})' if location else ''
+    body = (
+        f"Czas:      {ts}\n"
+        f"Działka:   {ozn_dz}\n"
+        f"IP:        {ip}{loc_str}\n"
+        f"Urządzenie: {ua}\n"
+    )
+    msg = MIMEText(body, 'plain', 'utf-8')
+    msg['Subject'] = f'[działka] {ozn_dz}'
+    msg['From'] = _EMAIL_FROM
+    msg['To'] = _EMAIL_TO
+    try:
+        with smtplib.SMTP('smtp.gmail.com', 587) as s:
+            s.starttls()
+            s.login(_EMAIL_FROM, _EMAIL_PASS)
+            s.sendmail(_EMAIL_FROM, _EMAIL_TO, msg.as_string())
+    except Exception as e:
+        print(f'[EMAIL] Błąd wysyłki: {e}')
+
 
 def _log_dzialka(ozn_dz):
     ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -87,6 +137,7 @@ def _log_dzialka(ozn_dz):
     ua = request.headers.get('User-Agent', '')
     with open(_LOG_PATH, 'a', encoding='utf-8') as f:
         f.write(f'| {ts} | {ozn_dz} | {ip} | {ua} |\n')
+    threading.Thread(target=_send_log_email, args=(ozn_dz, ip, ua, ts), daemon=True).start()
 
 
 # --- Routes ---
@@ -155,14 +206,7 @@ def dzialka():
 
     _log_dzialka(ozn_dz)
 
-    # Lookup powierzenia
-    pow_info = POWIERZENIA.get(ozn_dz)
-    if pow_info:
-        pow_opis = pow_info['opis']
-        pow_syg  = pow_info['sygnatura']
-    else:
-        pow_opis = 'brak informacji'
-        pow_syg  = ''
+    pow_list = POWIERZENIA.get(ozn_dz, [])
 
     # WFS — pobierz geometrię działki przez przecięcie z punktem kliknięcia.
     # Używamy SRID=4326;POINT w EWKT, bo CQL_FILTER domyślnie przyjmuje CRS warstwy (EPSG:2177).
@@ -194,8 +238,7 @@ def dzialka():
         'wlad':         (p.get('WLAD') or '').strip().lstrip('- ').rstrip(',') or '\u2014',
         'pow_ewd':      str(p.get('POW_EWD', '\u2014')),
         'adres':        p.get('ADRES_DZIALKI', '\u2014'),
-        'pow_opis':     pow_opis,
-        'pow_syg':      pow_syg,
+        'pow_list':     pow_list,
         'baza_data':    POWIERZENIA_DATA or '',
         'baza_liczba':  len(POWIERZENIA),
     }

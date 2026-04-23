@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<title>Scenarios Preview</title>
+<style>
+  body { font-family: -apple-system, sans-serif; background: #e5e7eb; padding: 32px; display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
+  h2 { width: 100%; margin: 0 0 4px; font-size: 13px; color: #6b7280; font-weight: 500; }
+
+  .scenario { width: 420px; }
+
+  .card {
+    background: white;
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  }
+  .card-body { padding: 20px 20px 20px; }
+
+  /* Hero zone */
+  .hero-label { font-size: 0.875rem; font-weight: 600; color: #101828; margin-bottom: 5px; }
+  .hero-name { font-size: 22px; font-weight: 700; color: #2b6cb0; margin: 0 0 4px; }
+  .hero-name.orange { color: #b7791f; }
+  .contextual-note { font-size: 13px; color: #101828; margin: 4px 0 6px; line-height: 1.5; }
+
+  /* Labels — shared style for all labels including NUMER POWIERZENIA */
+  .label {
+    font-size: 0.625rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #999;
+    margin-bottom: 3px;
+  }
+  .numer-powierzenia { margin-bottom: 10px; }
+  .units-grid .numer-powierzenia { margin-bottom: 0; }
+  .numer-powierzenia .label { display: inline; }
+  .numer-powierzenia .label-value { font-size: 0.75rem; color: #4a5568; }
+
+  /* Divider */
+  hr { border: none; border-top: 1px solid #e5e7eb; margin: 0 0 16px; }
+
+  /* Data grid */
+  .data-grid { display: flex; gap: 16px; margin-bottom: 16px; }
+  .data-grid .field { flex: 1; }
+  .value { font-size: 0.875rem; color: #101828; }
+  .value.parcel-id { font-size: 1rem; font-weight: 700; color: #101828; }
+
+  /* Rodzaj */
+  .rodzaj { margin-bottom: 4px; }
+  .rodzaj .value { font-size: 0.75rem; color: #101828; }
+  .rodzaj .value.muted { color: #9ca3af; }
+
+  /* Multi-unit grid (Scenario D) */
+  .units-grid { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 0; }
+  .unit-entry { flex: 1; min-width: 45%; margin-bottom: 10px; }
+  .unit-entry .hero-name { font-size: 16px; margin-bottom: 2px; }
+  .unit-entry .numer-powierzenia .label { display: block; }
+  .unit-entry .numer-powierzenia .label-value { display: block; }
+
+  /* Footer — outside card, no rounded corners */
+  .card-footer {
+    background: #f9fafb;
+    padding: 12px 20px;
+    font-size: 0.75rem;
+    color: #6b7280;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  }
+  .card-footer a { color: inherit; text-decoration: underline; }
+  .footer-block { display: inline-block; margin-right: 16px; }
+</style>
+</head>
+<body>
+
+<!-- SCENARIO A -->
+<div class="scenario">
+  <h2>Scenario A — normal, entrust + signature</h2>
+  <div class="card">
+    <div class="card-body">
+      <div class="hero-label">To działką zarządza</div>
+      <div class="hero-name">Zarząd Dróg Miejskich</div>
+      <div class="numer-powierzenia">
+        <span class="label">Numer powierzenia:</span>
+        <span class="label-value"> GN-XX.6345.3453.2026</span>
+      </div>
+      <hr>
+      <div class="data-grid">
+        <div class="field">
+          <div class="label">Numer działki</div>
+          <div class="value parcel-id">04/13/4/473</div>
+        </div>
+        <div class="field">
+          <div class="label">Właściciel</div>
+          <div class="value">Miasto Poznań</div>
+        </div>
+        <div class="field">
+          <div class="label">Powierzchnia</div>
+          <div class="value">0.507 ha</div>
+        </div>
+      </div>
+      <hr>
+      <div class="rodzaj">
+        <div class="label">Rodzaj powierzenia</div>
+        <div class="value">Gospodarowanie zasobem nieruchomości SP oraz gminnymi powiatowymi i wojewódzkimi zasobami nieruchomości</div>
+      </div>
+    </div>
+  </div>
+  <div class="card-footer">
+    <span class="footer-block">Wszystkie dane pochodzą z <a href="#">GEOPOZu</a></span>
+    <span class="footer-block">Zaktualizowano: 2026-04-20</span>
+    <span class="footer-block">Autor: Cyryl Kwaśniewski</span>
+  </div>
+</div>
+
+<!-- SCENARIO B -->
+<div class="scenario">
+  <h2>Scenario B — entrust found, no signature</h2>
+  <div class="card">
+    <div class="card-body">
+      <div class="hero-label">To działką zarządza</div>
+      <div class="hero-name" style="margin-bottom:16px">Zarząd Zieleni Miejskiej</div>
+      <hr>
+      <div class="data-grid">
+        <div class="field">
+          <div class="label">Numer działki</div>
+          <div class="value parcel-id">60/01/4/13</div>
+        </div>
+        <div class="field">
+          <div class="label">Właściciel</div>
+          <div class="value">Miasto Poznań</div>
+        </div>
+        <div class="field">
+          <div class="label">Powierzchnia</div>
+          <div class="value">0.089 ha</div>
+        </div>
+      </div>
+      <hr>
+      <div class="rodzaj">
+        <div class="label">Rodzaj powierzenia</div>
+        <div class="value">Trwały zarząd</div>
+      </div>
+    </div>
+  </div>
+  <div class="card-footer">
+    <span class="footer-block">Wszystkie dane pochodzą z <a href="#">GEOPOZu</a></span>
+    <span class="footer-block">Zaktualizowano: 2026-04-20</span>
+    <span class="footer-block">Autor: Cyryl Kwaśniewski</span>
+  </div>
+</div>
+
+<!-- SCENARIO C1 -->
+<div class="scenario">
+  <h2>Scenario C1 — not in xlsx, GEOPOZ implies ZDM</h2>
+  <div class="card">
+    <div class="card-body">
+      <div class="hero-label">To działką zarządza</div>
+      <div class="hero-name">Zarząd Dróg Miejskich</div>
+      <div class="contextual-note">Działka ma innego właściciela, ale ZDM odpowiada za utrzymanie pasa drogowego.</div>
+      <div class="numer-powierzenia">
+        <span class="label">Numer powierzenia:</span>
+        <span class="label-value"> GN-XX.6345.3453.2026</span>
+      </div>
+      <hr>
+      <div class="data-grid">
+        <div class="field">
+          <div class="label">Numer działki</div>
+          <div class="value parcel-id">04/13/4/473</div>
+        </div>
+        <div class="field">
+          <div class="label">Właściciel</div>
+          <div class="value">Miasto Poznań</div>
+        </div>
+        <div class="field">
+          <div class="label">Powierzchnia</div>
+          <div class="value">0.507 ha</div>
+        </div>
+      </div>
+      <hr>
+      <div class="rodzaj">
+        <div class="label">Rodzaj powierzenia</div>
+        <div class="value muted">Wykonywanie zadań zarządcy dróg publicznych</div>
+      </div>
+    </div>
+  </div>
+  <div class="card-footer">
+    <span class="footer-block">Wszystkie dane pochodzą z <a href="#">GEOPOZu</a></span>
+    <span class="footer-block">Zaktualizowano: 2026-04-20</span>
+    <span class="footer-block">Autor: Cyryl Kwaśniewski</span>
+  </div>
+</div>
+
+<!-- SCENARIO C2 -->
+<div class="scenario">
+  <h2>Scenario C2 — not in xlsx, non-city owner</h2>
+  <div class="card">
+    <div class="card-body">
+      <div class="hero-label">To działką zarządza</div>
+      <div class="hero-name orange">Skarb Państwa</div>
+      <div class="contextual-note"><strong>Miasto nie jest jej właścicielem.</strong> W sprawach dotyczących tej działki możesz zwrócić się do Wydziału Gospodarki Nieruchomościami Urzędu Miasta Poznania.</div>
+      <hr>
+      <div class="data-grid">
+        <div class="field">
+          <div class="label">Numer działki</div>
+          <div class="value parcel-id">04/13/4/473</div>
+        </div>
+        <div class="field">
+          <div class="label">Powierzchnia</div>
+          <div class="value">0.507 ha</div>
+        </div>
+      </div>
+      <hr>
+      <div class="rodzaj">
+        <div class="label">Rodzaj powierzenia</div>
+        <div class="value muted">Własność</div>
+      </div>
+    </div>
+  </div>
+  <div class="card-footer">
+    <span class="footer-block">Wszystkie dane pochodzą z <a href="#">GEOPOZu</a></span>
+    <span class="footer-block">Zaktualizowano: 2026-04-20</span>
+    <span class="footer-block">Autor: Cyryl Kwaśniewski</span>
+  </div>
+</div>
+
+<!-- SCENARIO D -->
+<div class="scenario">
+  <h2>Scenario D — multiple entrusts (CZY_CZESC=1)</h2>
+  <div class="card">
+    <div class="card-body">
+      <div class="hero-label">Tą działką zarządza kilka jednostek:</div>
+      <div class="units-grid">
+        <div class="unit-entry">
+          <div class="hero-name">Zarząd Dróg Miejskich</div>
+          <div class="numer-powierzenia">
+            <span class="label">Numer powierzenia:</span>
+            <span class="label-value"> GN-XX.6345.3453.2026</span>
+          </div>
+        </div>
+        <div class="unit-entry">
+          <div class="hero-name">Zarząd Zieleni Miejskiej</div>
+          <div class="numer-powierzenia">
+            <span class="label">Numer powierzenia:</span>
+            <span class="label-value"> GN-XX.6345.3453.2025</span>
+          </div>
+        </div>
+        <div class="unit-entry">
+          <div class="hero-name">Zakład Lasów Poznańskich</div>
+          <div class="numer-powierzenia">
+            <span class="label">Numer powierzenia:</span>
+            <span class="label-value"> GN-XX.6345.3453.2024</span>
+          </div>
+        </div>
+      </div>
+      <hr>
+      <div class="data-grid">
+        <div class="field">
+          <div class="label">Numer działki</div>
+          <div class="value parcel-id">04/13/4/473</div>
+        </div>
+        <div class="field">
+          <div class="label">Właściciel</div>
+          <div class="value">Miasto Poznań</div>
+        </div>
+        <div class="field">
+          <div class="label">Powierzchnia</div>
+          <div class="value">0.507 ha</div>
+        </div>
+      </div>
+      <hr>
+      <div class="rodzaj">
+        <div class="label">Rodzaj powierzenia</div>
+        <div class="value">Trwały zarząd</div>
+      </div>
+    </div>
+  </div>
+  <div class="card-footer">
+    <span class="footer-block">Wszystkie dane pochodzą z <a href="#">GEOPOZu</a></span>
+    <span class="footer-block">Zaktualizowano: 2026-04-20</span>
+    <span class="footer-block">Autor: Cyryl Kwaśniewski</span>
+  </div>
+</div>
+
+</body>
+</html>

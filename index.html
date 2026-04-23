@@ -461,6 +461,11 @@
       showWlasc = false;
       heroZone = '<div class="hero-label">W\u0142a\u015bcicielem dzia\u0142ki jest instytucja ko\u015bcielna</div>' +
         '<div class="contextual-note" style="color:#888">(ko\u015bcio\u0142y lub zwi\u0105zki wyznaniowe)</div>';
+    } else if (wlasc.indexOf('Skarb Pa\u0144stwa') !== -1 && wlad.indexOf('Gospodarowanie zasobem') !== -1) {
+      showWlasc = false;
+      heroZone = '<div class="hero-label">T\u0105 dzia\u0142k\u0105 zarz\u0105dza</div>' +
+        '<div class="hero-name">Zarz\u0105d Dr\u00f3g Miejskich</div>' +
+        '<div class="contextual-note" style="color:#888">(jednostka odpowiada za utrzymanie pasa drogowego)</div>';
     } else if (!isCityOwned) {
       showWlasc = false;
       heroZone = '<div class="hero-label">T\u0105 dzia\u0142k\u0105 zarz\u0105dza</div>' +
@@ -487,11 +492,10 @@
       (d.pow_ewd ? field('Powierzchnia', d.pow_ewd + '\u00a0ha') : '') +
       '</div>';
 
-    const rodzajMuted = !hasPow && !isMulti && wlad.indexOf('Gospodarowanie zasobem') === -1;
     const rodzajHtml = (wlad && wlad !== '\u2014')
       ? '<div class="field">' +
         '<div class="label">Rodzaj powierzenia</div>' +
-        '<div class="value rodzaj' + (rodzajMuted ? ' muted' : '') + '">' + wlad + '</div>' +
+        '<div class="value rodzaj">' + wlad + '</div>' +
         '</div>'
       : '';
 

@@ -424,18 +424,26 @@
     const powList = d.pow_list || [];
     const wlad = d.wlad || '';
     const wlasc = d.wlasc || '';
+    // wlasc / wlad are free-text from GEOPOZ EGIB — never strict equality, always indexOf.
+    // pow_list comes from powierzenia-YYYY-MM-DD.xlsx (loaded at startup); it is the
+    // authoritative source and always wins — branches 1-2 fire before any inference.
+    // Decision tree is evaluated top-to-bottom; first match wins. See ZARZADCA-LOGIC.md.
     const isMulti = powList.length > 1;
     const hasPow  = powList.length >= 1;
     const isRoads = wlad.indexOf('dr\u00f3g publicznych') !== -1;
+    // Note: some road parcels have WLAD='Gospodarowanie zasobem...' due to stale EGIB records
+    // and will NOT match isRoads. NRD field from GEOPOZ is parcel-number suffix, not road indicator.
+    // Only fix: add the parcel to powierzenia XLSX with opis='Zarząd Dróg Miejskich'.
     const isCityOwned = wlasc.indexOf('Miasto Pozna\u0144') !== -1;
     const isSkarb = wlasc.indexOf('Skarb Pa\u0144stwa') !== -1;
     const isChurch = wlasc.toLowerCase().indexOf('ko\u015bcio\u0142y') !== -1 || wlasc.toLowerCase().indexOf('zwi\u0105zki wyznaniowe') !== -1;
-    const isMixedOwnership = isCityOwned && wlasc.indexOf('osoba fizyczna') !== -1;
-    const isGminnaEntity = !isCityOwned && !isSkarb && wlasc.toLowerCase().indexOf('gminna') !== -1;
+    const isMixedOwnership = isCityOwned && wlasc.indexOf('osoba fizyczna') !== -1; // city + private co-owners, e.g. housing community plot
+    const isGminnaEntity = !isCityOwned && !isSkarb && wlasc.toLowerCase().indexOf('gminna') !== -1; // municipal company — not Miasto Poznań itself
 
     let heroZone = '';
     let showWlasc = true;
 
+    // 1 — XLSX: multiple managers — show grid of all entries
     if (isMulti) {
       heroZone = '<div class="hero-label">T\u0105 dzia\u0142k\u0105 zarz\u0105dza kilka jednostek:</div>' +
         '<div class="units-grid">' +
@@ -446,57 +454,87 @@
             '</div>';
         }).join('') +
         '</div>';
+    // 2 — XLSX: single manager
     } else if (hasPow) {
       const p = powList[0];
       heroZone = '<div class="hero-label">T\u0105 dzia\u0142k\u0105 zarz\u0105dza</div>' +
         '<div class="hero-name">' + (p.opis || 'brak informacji') + '</div>' +
         numPow(p.sygnatura);
+    // 3 — Road parcel, city-owned: Art. 19 ust. 5 UoDP — in miasto na prawach powiatu
+    //     (Poznań qualifies) the Prezydent is zarządca of public roads; ZDM acts on his behalf.
     } else if (isRoads && isCityOwned) {
       heroZone = '<div class="hero-label">T\u0105 dzia\u0142k\u0105 zarz\u0105dza</div>' +
         '<div class="hero-name">Zarz\u0105d Dr\u00f3g Miejskich</div>' +
         '<div class="contextual-note" style="color:#888">(jednostka odpowiada za utrzymanie pasa drogowego)</div>';
+    // 4 — Road parcel, non-city owner: zarządca status follows road category, not ownership.
+    //     ZDM manages roads on Skarb Państwa land too. ⚠ GDDKiA (A2/S5/S11) not handled.
     } else if (isRoads && !isCityOwned) {
       heroZone = '<div class="hero-label">T\u0105 dzia\u0142k\u0105 zarz\u0105dza</div>' +
         '<div class="hero-name">Zarz\u0105d Dr\u00f3g Miejskich</div>' +
         '<div class="contextual-note">Dzia\u0142ka ma innego w\u0142a\u015bciciela, ale ZDM odpowiada za utrzymanie pasa drogowego.</div>';
+    // 5 — Religious entity: owner IS the manager (Ustawa o gwarancjach wolności sumienia
+    //     i wyznania + denomination laws). Fully outside UGN / Skarb Państwa framework.
     } else if (isChurch) {
       showWlasc = false;
       heroZone = '<div class="hero-label">W\u0142a\u015bcicielem i zarz\u0105dc\u0105 dzia\u0142ki jest</div>' +
         '<div class="hero-name">' + (wlasc || 'instytucja ko\u015bcielna') + '</div>' +
         '<div class="contextual-note" style="color:#888">(ko\u015bcio\u0142y i zwi\u0105zki wyznaniowe zarz\u0105dzaj\u0105 w\u0142asno\u015bci\u0105 samodzielnie)</div>';
+    // 6 — SP + użytkowanie wieczyste: Art. 232 KC — UW holder acts independently.
+    //     WGN (Prezydent as Starosta) administers UW contracts on behalf of SP.
     } else if (isSkarb && wlad.indexOf('U\u017cytkowanie wieczyste') !== -1) {
       heroZone = '<div class="hero-label">Dzia\u0142ka Skarbu Pa\u0144stwa w u\u017cytkowaniu wieczystym</div>' +
         '<div class="contextual-note" style="color:#888">Grunt oddany miastu lub podmiotowi prywatnemu. Szczeg\u00f3\u0142y: Wydzia\u0142 Gospodarki Nieruchomo\u015bciami UMP.</div>';
+    // 7 — SP + Gospodarowanie zasobem: Art. 11+23 UGN + Art. 92 u.s.p. — Prezydent acts
+    //     as Starosta for SP parcels. General SP resource pool; WGN is the right contact.
     } else if (isSkarb && wlad.indexOf('Gospodarowanie zasobem') !== -1) {
       heroZone = '<div class="hero-label">Dzia\u0142k\u0105 zarz\u0105dza urz\u0105d lub jednostka Skarbu Pa\u0144stwa</div>' +
         '<div class="contextual-note" style="color:#888">Brak szczeg\u00f3\u0142owych danych \u2014 w razie pyta\u0144 zwr\u00f3\u0107 si\u0119 do Wydzia\u0142u Gospodarki Nieruchomo\u015bciami UMP.</div>';
+    // 7b — SP + Trwały zarząd: SP land in TZ may be held by state or city unit (e.g. school).
+    //      Both are named since either is possible. WGN (Prezydent as Starosta) supervises.
     } else if (isSkarb && wlad.indexOf('Trwa\u0142y zarz\u0105d') !== -1) {
       heroZone = '<div class="hero-label">Dzia\u0142ka w trwa\u0142ym zarz\u0105dzie jednostki pa\u0144stwowej lub miejskiej</div>' +
         '<div class="contextual-note" style="color:#888">W razie pyta\u0144 zwr\u00f3\u0107 si\u0119 do Wydzia\u0142u Gospodarki Nieruchomo\u015bciami UMP.</div>';
+    // 8 — SP fallback: catches SP + any WLAD not matched above, or SP with no WLAD.
     } else if (isSkarb) {
       heroZone = '<div class="hero-label">Dzia\u0142ka nale\u017cy do Skarbu Pa\u0144stwa</div>' +
         '<div class="contextual-note" style="color:#888">Brak danych o zarz\u0105dcy \u2014 w razie pyta\u0144 zwr\u00f3\u0107 si\u0119 do Wydzia\u0142u Gospodarki Nieruchomo\u015bciami UMP.</div>';
+    // 9a — Gminna legal entity: 'gminna osoba prawna' / 'jednoosobowa spółka gminy'.
+    //      City-owned companies don't contain 'Miasto Poznań' — without this branch they
+    //      fall to branch 9 with the incorrect 'Miasto nie jest właścicielem' message.
     } else if (isGminnaEntity) {
       heroZone = '<div class="hero-label">Dzia\u0142ka nale\u017cy do miejskiej sp\u00f3\u0142ki lub jednostki gminnej</div>' +
         '<div class="contextual-note" style="color:#888">W\u0142a\u015bcicielem jest podmiot powi\u0105zany z Miastem Pozna\u0144. W sprawach dotycz\u0105cych tej dzia\u0142ki zwr\u00f3\u0107 si\u0119 do Wydzia\u0142u Gospodarki Nieruchomo\u015bciami UMP.</div>';
+    // 9 — Private / other non-city non-state non-church owner (osoba fizyczna, spółka, etc.)
+    //     Owner name shown in orange. showWlasc=false: name already in hero zone.
     } else if (!isCityOwned) {
       showWlasc = false;
       heroZone = '<div class="hero-label">T\u0105 dzia\u0142k\u0105 zarz\u0105dza</div>' +
         '<div class="hero-name orange">' + (wlasc || 'nieznany') + '</div>' +
         '<div class="contextual-note"><strong>Miasto nie jest jej w\u0142a\u015bcicielem.</strong> W sprawach dotycz\u0105cych tej dzia\u0142ki mo\u017cesz zwr\u00f3ci\u0107 si\u0119 do Wydzia\u0142u Gospodarki Nieruchomo\u015bciami Urz\u0119du Miasta Poznania.</div>';
+    // 10 — City + private co-ownership + Gospodarowanie zasobem: typically a building plot
+    //      with a housing community (wspólnota). isCityOwned=true prevents branch 9 from firing.
     } else if (isMixedOwnership && wlad.indexOf('Gospodarowanie zasobem') !== -1) {
       showWlasc = false;
       heroZone = '<div class="hero-label">Dzia\u0142ka ze wsp\u00f3\u0142w\u0142asno\u015bci\u0105 Miasta i os\u00f3b prywatnych</div>' +
         '<div class="contextual-note" style="color:#888">To prawdopodobnie grunt pod budynkiem wielolokalowym (wsp\u00f3lnota mieszkaniowa)</div>';
+    // 11 — City parcel + Gospodarowanie zasobem: general city asset pool, no specific
+    //      concession recorded. WGN manages. (isMixedOwnership case handled above.)
     } else if (wlad.indexOf('Gospodarowanie zasobem') !== -1) {
       heroZone = '<div class="hero-label">T\u0105 dzia\u0142k\u0105 zarz\u0105dza</div>' +
         '<div class="hero-name">Wydzia\u0142 Gospodarki Nieruchomo\u015bciami</div>';
+    // 12 — City parcel + użytkowanie wieczyste: Art. 232 KC — UW holder has quasi-ownership
+    //      and acts independently. Typically wspólnota, firma, or osoba prywatna.
     } else if (wlad.indexOf('U\u017cytkowanie wieczyste') !== -1) {
       heroZone = '<div class="hero-label">Dzia\u0142ka w u\u017cytkowaniu wieczystym</div>' +
         '<div class="contextual-note" style="color:#888">Grunt miejski oddany w u\u017cytkowanie wieczyste \u2014 najprawdopodobniej wsp\u00f3lnocie, firmie lub osobie prywatnej.</div>';
+    // 13 — City parcel + Trwały zarząd: Art. 43 UGN — TZ is held by public units only.
+    //      'Jednostki miejskiej' only — Miasto cannot grant TZ to state units (contrast: 7b).
+    //      If the specific unit is in XLSX, branch 1 or 2 fires first.
     } else if (isCityOwned && wlad.indexOf('Trwa\u0142y zarz\u0105d') !== -1) {
       heroZone = '<div class="hero-label">Dzia\u0142ka w trwa\u0142ym zarz\u0105dzie jednostki miejskiej</div>' +
         '<div class="contextual-note" style="color:#888">W razie pyta\u0144 zwr\u00f3\u0107 si\u0119 do Wydzia\u0142u Gospodarki Nieruchomo\u015bciami UMP.</div>';
+    // 14 — Default: unrecognised WLASC/WLAD combination.
+    //      Monitor for unexpected fallbacks — EGIB vocabulary may change over time.
     } else {
       heroZone = '<div class="hero-label">T\u0105 dzia\u0142k\u0105 zarz\u0105dza</div>' +
         '<div class="hero-name">brak informacji</div>';

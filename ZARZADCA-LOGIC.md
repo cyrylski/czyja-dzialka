@@ -207,16 +207,22 @@ win). It maps `OZN_DZ` → `[{opis, sygnatura}]`.
    for this. In practice these parcels are unlikely to appear as individually
    clickable cadastre parcels.
 
-2. **SP + Trwały zarząd not explicitly labelled:** Falls to branch 8 ("brak
-   danych o zarządcy → WGN") which is functionally correct but could be more
-   specific. A dedicated branch could be added between branches 7 and 8 if
-   needed.
+2. **Road parcels with stale WLAD:** Some road parcels have `WLAD = "Gospodarowanie
+   zasobem..."` instead of the expected road management string due to outdated EGIB
+   records. These miss `isRoads` and fall to branch 11 (WGN). No automated fix is
+   possible — add individually to the powierzenia XLSX.
 
-3. **XLSX is not auto-synced:** The powierzenie file requires a manual export
+3. **NRD field is not a road indicator:** GEOPOZ returns an `NRD` field which appears
+   to contain the parcel-number suffix (e.g. `"4/473"` for parcel `"04/13/4/473"`).
+   It is populated for every parcel, not just roads. Investigated 2026-04-23 using
+   parcel `04/13/4/473` (ul. Piotra Tomickiego, confirmed ZDM). Cannot be used as
+   a road signal. See `POZNAN-API-RESEARCH.md` for full investigation notes.
+
+4. **XLSX is not auto-synced:** The powierzenie file requires a manual export
    from the municipal system. It may lag behind reality. The date in the
    filename is the only freshness indicator shown to the user.
 
-4. **wlasc / wlad are free-text:** GEOPOZ does not enforce a controlled
+5. **wlasc / wlad are free-text:** GEOPOZ does not enforce a controlled
    vocabulary. New values may appear that don't match any `indexOf()` check and
    fall through to the default (branch 14). Monitor for unexpected fallbacks in
    production.
@@ -227,8 +233,8 @@ win). It maps `OZN_DZ` → `[{opis, sygnatura}]`.
 
 | What to change | File | Lines |
 |---|---|---|
-| Decision tree (all branches) | `index.html` | 427–496 |
-| Boolean flag definitions | `index.html` | 427–433 |
+| Decision tree (all branches) | `index.html` | ~439–520 |
+| Boolean flag definitions + comments | `index.html` | ~427–438 |
 | XLSX loading | `server.py` | 32–70 |
 | API response fields | `server.py` | 234–244 |
 | Scenario documentation | `panel-scenarios.md` | entire file |

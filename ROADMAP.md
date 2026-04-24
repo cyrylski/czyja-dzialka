@@ -42,6 +42,47 @@
 - ZDM case in Zarządca field: when concession data is absent but `WLAD` indicates ZDM, show "Prawdopodobnie Zarząd Dróg Miejskich" with a note about missing GEOPOZ data.
 - Fixed: `<br>` before secondary `<span>` in Zarządca field was missing in one rendering path.
 
+### 2026-04-24
+
+**Bug fixes**
+
+- Fixed a persistent race condition with the circle marker: introduced a `requestToken` counter in `index.html` so that only the response matching the most recent tap is rendered; stale responses from earlier taps are silently discarded.
+- Fixed invisible parcel border on tap — triaged through three successive root causes:
+  1. Wrong WFS layer name: `dzialki_szraw_sql` → `egib:dzialki_ewidencyjne_sql`.
+  2. CRS axis order mismatch: replaced `EPSG:4326` with `CRS:84` in the WFS `GetFeature` request so longitude/latitude are sent in the correct order.
+  3. Switched from a bounding-box filter to a `SRID=4326;POINT(lon lat)` spatial `INTERSECTS` predicate, which correctly identifies the single clicked parcel rather than all parcels in the bbox.
+
+**UI / Visual changes**
+
+- Reduced color fill layer opacity from 0.45 to 0.32 (`index.html`, Leaflet tile layer options).
+- Added `egib:dzialki_ewidencyjne_sql` as a dedicated WMS boundary layer at 0.4 opacity so parcel outlines are always visible even before a tap.
+- Selected parcel polygon border color changed to blue, weight reduced; both circle marker and selected parcel border now use the unified `#4299e1` / `#2b6cb0` palette so the two visual elements are clearly related.
+- `Zarządca` field: added conditional rendering for the ZDM + "brak informacji" case — shows a `<br>` line break before the sub-label so the secondary text renders on its own line in all rendering paths.
+- Narrative heading "Tą działką zarządza" (`index.html`, `renderScenario()`) added above the manager name in the result panel.
+- App title updated to include `(wersja testowa)` rendered in `#999` grey via an inline `<span>`.
+- "Masz pomysł?" feedback line moved below the H1 heading and converted to a `mailto:` anchor link.
+
+**Architecture refactor**
+
+- Extracted `geopoz_client.py`: a dedicated data-access layer that wraps all outbound calls to GEOPOZ GeoServer (WMS `GetFeatureInfo`, WFS `GetFeature`) and the WMSEGIB portal (`KLASOUZYTKI_EGIB` lookup). `server.py` no longer contains any HTTP calls to external APIs.
+- Extracted `parcel_analyzer.py`: a 16-branch scenario engine. Introduced `ScenarioType` enum (one variant per panel scenario) and `ParcelScenario` dataclass (holds `scenario_type`, `manager`, `secondary_label`, `rodzaj`, `sygnatura`, `powierzchnia`). The `analyze()` function maps raw GEOPOZ attributes to a `ParcelScenario`; `server.py` calls `analyze()` and serialises the result to JSON.
+- `server.py` `/dzialka` route slimmed to: fetch raw data via `geopoz_client`, call `parcel_analyzer.analyze()`, return the resulting dataclass as JSON. All branching logic removed from the route handler.
+- `buildCard()` in `index.html` replaced with `renderScenario()`, which reads the `scenario_type` field from the API response and delegates to a per-scenario render function instead of containing inline conditional chains.
+
+**Analytics**
+
+- Added `_log_dzialka()` in `server.py`: logs every `/dzialka` request to `analytics.log` with ISO timestamp, parcel ID, client IP (read from `X-Forwarded-For` header, falling back to `request.remote_addr`), and user-agent string.
+- `analytics.log` added to `.gitignore` so production log data is never committed.
+
+**Performance**
+
+- Replaced `pyproj` with a pure-Python EPSG:2177 → WGS 84 coordinate transform (`geopoz_client.py`) to eliminate the compiled `pyproj` / `PROJ` dependency. Render build time dropped from ~3 min to under 30 s.
+
+**Documentation**
+
+- `ROADMAP.md` created with Changelog and Planned features sections.
+- `.gitignore` updated: added `analytics.log` and sensitive planning docs (`PRODUCTION_PLAN.md`, `POZNAN-API-RESEARCH.md`, `ZARZADCA-LOGIC.md`).
+
 ---
 
 ## Planned features / Ideas

@@ -1,3 +1,4 @@
+import dataclasses
 import os
 import smtplib
 import threading
@@ -93,22 +94,7 @@ def dzialka():
 
     _log_dzialka(scenario.ozn_dz)
 
-    result = {
-        'ozn_dz':      scenario.ozn_dz,
-        'nrd':         attrs.nrd or '\u2014',
-        'wlasc':       scenario.wlasc,
-        'wlad':        scenario.wlad,
-        'klasouzytki': attrs.klasouzytki,
-        'pow_ewd':     scenario.pow_ewd,
-        'adres':       scenario.adres,
-        'pow_list':    [{'opis': e.opis, 'sygnatura': e.sygnatura} for e in scenario.pow_entries],
-        'baza_data':   scenario.baza_data or '',
-        'baza_liczba': scenario.baza_liczba,
-    }
-    if scenario.geometry:
-        result['geometry'] = scenario.geometry
-
-    return jsonify(result)
+    return jsonify(dataclasses.asdict(scenario))
 
 
 if __name__ == '__main__':

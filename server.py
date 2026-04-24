@@ -8,6 +8,7 @@ import requests
 from flask import Flask, jsonify, request, send_from_directory
 
 import geopoz_client
+import parcel_analyzer
 
 app = Flask(__name__, static_folder='.')
 
@@ -86,25 +87,26 @@ def dzialka():
     if attrs is None:
         return jsonify({'error': 'Nie znaleziono dzialki w tym miejscu'})
 
-    _log_dzialka(attrs.ozn_dz)
-
     pow_entries = geopoz_client.get_powierzenia(attrs.ozn_dz)
     meta        = geopoz_client.get_powierzenia_meta()
+    scenario    = parcel_analyzer.analyze_parcel(attrs, pow_entries, meta)
+
+    _log_dzialka(scenario.ozn_dz)
 
     result = {
-        'ozn_dz':      attrs.ozn_dz or '\u2014',
+        'ozn_dz':      scenario.ozn_dz,
         'nrd':         attrs.nrd or '\u2014',
-        'wlasc':       attrs.wlasc or '\u2014',
-        'wlad':        attrs.wlad or '\u2014',
+        'wlasc':       scenario.wlasc,
+        'wlad':        scenario.wlad,
         'klasouzytki': attrs.klasouzytki,
-        'pow_ewd':     attrs.pow_ewd or '\u2014',
-        'adres':       attrs.adres or '\u2014',
-        'pow_list':    [{'opis': e.opis, 'sygnatura': e.sygnatura} for e in pow_entries],
-        'baza_data':   meta.source_date or '',
-        'baza_liczba': meta.total_records,
+        'pow_ewd':     scenario.pow_ewd,
+        'adres':       scenario.adres,
+        'pow_list':    [{'opis': e.opis, 'sygnatura': e.sygnatura} for e in scenario.pow_entries],
+        'baza_data':   scenario.baza_data or '',
+        'baza_liczba': scenario.baza_liczba,
     }
-    if attrs.geometry:
-        result['geometry'] = attrs.geometry
+    if scenario.geometry:
+        result['geometry'] = scenario.geometry
 
     return jsonify(result)
 

@@ -218,6 +218,7 @@
           <span class="footer-block">Wszystkie dane pochodzą z <a href="https://sipaplikacje.geopoz.poznan.pl/raporty/">GEOPOZu</a></span>
           <span class="footer-block" id="baza-info"></span>
           <span class="footer-block">Autor: <a href="https://www.linkedin.com/in/cyryl-kwasniewski/" target="_blank">Cyryl Kwaśniewski</a></span>
+          <span class="footer-block" id="app-version"></span>
         </div>
       </div>
     </div>
@@ -383,6 +384,11 @@
       setCardContent('error', 'B\u0142\u0105d po\u0142\u0105czenia. Spr\u00f3buj ponownie.');
     }
   }
+
+  fetch('/api/version').then(r => r.json()).then(d => {
+    const el = document.getElementById('app-version');
+    if (el) el.textContent = d.version;
+  });
 
   (function() {
     const btn = document.getElementById('minimize-btn');

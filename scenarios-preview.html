@@ -1,283 +1,927 @@
 <!DOCTYPE html>
 <html lang="pl">
 <head>
-<meta charset="UTF-8">
-<title>Scenarios Preview</title>
-<style>
-  body { font-family: -apple-system, sans-serif; background: #e5e7eb; padding: 32px; display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
-  h2 { width: 100%; margin: 0 0 4px; font-size: 13px; color: #6b7280; font-weight: 500; }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Czyja Działka — Panel Scenarios</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  .scenario { width: 420px; }
+    :root {
+      --blue-700:  #2b6cb0;
+      --blue-600:  #1a56a0;
+      --blue-400:  #4299e1;
+      --blue-500:  #3b82f6;
+      --red-500:   #e53e3e;
+      --gray-900:  #101828;
+      --gray-700:  #4a5568;
+      --gray-600:  #555;
+      --gray-400:  #888;
+      --gray-300:  #999;
+      --white:     #ffffff;
+      --border:    rgba(153,153,153,0.5);
+      --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --shadow-card: 0 1px 3px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.10);
+    }
 
-  .card {
-    background: white;
-    border-radius: 16px 16px 0 0;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
-  }
-  .card-body { padding: 20px 20px 20px; }
+    body {
+      font-family: var(--font);
+      background: #f4f6f9;
+      color: var(--gray-900);
+      padding: 48px 24px 100px;
+      line-height: 1.5;
+    }
 
-  /* Hero zone */
-  .hero-label { font-size: 0.875rem; font-weight: 600; color: #101828; margin-bottom: 5px; }
-  .hero-name { font-size: 22px; font-weight: 700; color: #2b6cb0; margin: 0 0 4px; }
-  .hero-name.orange { color: #b7791f; }
-  .contextual-note { font-size: 13px; color: #101828; margin: 4px 0 6px; line-height: 1.5; }
+    .page { max-width: 1100px; margin: 0 auto; }
 
-  /* Labels — shared style for all labels including NUMER POWIERZENIA */
-  .label {
-    font-size: 0.625rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: #999;
-    margin-bottom: 3px;
-  }
-  .numer-powierzenia { margin-bottom: 10px; }
-  .units-grid .numer-powierzenia { margin-bottom: 0; }
-  .numer-powierzenia .label { display: inline; }
-  .numer-powierzenia .label-value { font-size: 0.75rem; color: #4a5568; }
+    /* ── Page header ── */
+    .page-header { margin-bottom: 48px; }
+    .page-header h1 { font-size: 1.375rem; font-weight: 700; color: var(--gray-900); margin-bottom: 6px; }
+    .page-header p  { font-size: 0.8125rem; color: var(--gray-400); }
+    .page-header a  { color: var(--blue-600); text-decoration: none; font-weight: 500; }
+    .page-header a:hover { text-decoration: underline; }
 
-  /* Divider */
-  hr { border: none; border-top: 1px solid #e5e7eb; margin: 0 0 16px; }
+    /* ── Section label ── */
+    .section-label {
+      font-size: 0.5625rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.4px;
+      color: var(--gray-300);
+      margin-bottom: 20px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(153,153,153,0.3);
+    }
 
-  /* Data grid */
-  .data-grid { display: flex; gap: 16px; margin-bottom: 16px; }
-  .data-grid .field { flex: 1; }
-  .value { font-size: 0.875rem; color: #101828; }
-  .value.parcel-id { font-size: 1rem; font-weight: 700; color: #101828; }
+    /* ── Scenario grid ── */
+    .scenarios-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+      gap: 32px;
+      align-items: start;
+    }
 
-  /* Rodzaj */
-  .rodzaj { margin-bottom: 4px; }
-  .rodzaj .value { font-size: 0.75rem; color: #101828; }
-  .rodzaj .value.muted { color: #9ca3af; }
+    /* ── Single scenario ── */
+    .scenario { display: flex; flex-direction: column; gap: 10px; }
 
-  /* Multi-unit grid (Scenario D) */
-  .units-grid { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 0; }
-  .unit-entry { flex: 1; min-width: 45%; margin-bottom: 10px; }
-  .unit-entry .hero-name { font-size: 16px; margin-bottom: 2px; }
-  .unit-entry .numer-powierzenia .label { display: block; }
-  .unit-entry .numer-powierzenia .label-value { display: block; }
+    .scenario-meta { display: flex; align-items: flex-start; gap: 8px; }
+    .branch-badge {
+      font-size: 0.5rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      padding: 2px 7px;
+      border-radius: 20px;
+      background: #e5e7eb;
+      color: #374151;
+      white-space: nowrap;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .scenario-name {
+      font-size: 0.6875rem;
+      font-weight: 600;
+      color: var(--gray-700);
+    }
+    .scenario-condition {
+      font-size: 0.5625rem;
+      color: var(--gray-300);
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      margin-top: 2px;
+    }
 
-  /* Footer — outside card, no rounded corners */
-  .card-footer {
-    background: #f9fafb;
-    padding: 12px 20px;
-    font-size: 0.75rem;
-    color: #6b7280;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
-  }
-  .card-footer a { color: inherit; text-decoration: underline; }
-  .footer-block { display: inline-block; margin-right: 16px; }
-</style>
+    /* ── Card shell ── */
+    .card-wrap {
+      background: var(--white);
+      border-radius: 16px;
+      box-shadow: var(--shadow-card);
+      padding: 20px;
+    }
+
+    /* ── App card styles (verbatim from index.html) ── */
+    .field        { display: flex; flex-direction: column; gap: 4px; margin-bottom: 16px; }
+    .field:last-child { margin-bottom: 0; }
+    .label        { font-size: 0.625rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.2px; color: #999; }
+    .value        { font-size: 0.875rem; color: #101828; }
+    .value.parcel-id { font-size: 1rem; font-weight: 700; color: #101828; }
+    .value.rodzaj { font-size: 0.75rem; }
+    .fields-row   { display: flex; gap: 16px; margin-bottom: 16px; }
+    .fields-row:last-child { margin-bottom: 0; }
+    .fields-row .field { flex: 1; margin-bottom: 0; }
+    .card-divider { border: none; border-top: 1px solid #e5e7eb; margin: 0 0 16px; }
+    .hero-label   { font-size: 0.875rem; font-weight: 600; color: #101828; margin-bottom: 5px; }
+    .hero-name    { font-size: 1.375rem; font-weight: 700; color: #2b6cb0; margin-bottom: 4px; }
+    .hero-name.orange { color: #b7791f; }
+    .contextual-note  { font-size: 0.8125rem; color: #101828; line-height: 1.5; margin-bottom: 6px; }
+    .numer-pow    { margin-bottom: 10px; }
+    .numer-pow .label { display: inline; }
+    .numer-pow-value  { font-size: 0.75rem; color: #4a5568; }
+    .units-grid   { display: flex; flex-wrap: wrap; gap: 0 16px; }
+    .unit-entry   { flex: 1; min-width: 45%; margin-bottom: 10px; }
+    .unit-entry .hero-name  { font-size: 1rem; margin-bottom: 2px; }
+    .unit-entry .numer-pow  { margin-bottom: 0; }
+    .unit-entry .numer-pow .label { display: block; }
+    .unit-entry .numer-pow-value  { display: block; }
+    .panel-footer {
+      border-top: 1px solid rgba(153,153,153,0.3);
+      padding-top: 12px;
+      font-size: 0.75rem;
+      color: #6b7280;
+      margin-top: 16px;
+    }
+    .footer-block { display: inline-block; margin-right: 16px; }
+    .footer-block a { color: inherit; text-decoration: underline; }
+
+    /* ── Special states ── */
+    .card-loading { display: flex; align-items: center; gap: 10px; color: #888; font-size: 0.875rem; min-height: 60px; }
+    .card-error   { display: flex; align-items: center; color: #e53e3e; font-size: 0.875rem; min-height: 60px; }
+    .card-idle    { min-height: 60px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+      width: 22px; height: 22px;
+      border: 2.5px solid rgba(59,130,246,0.15);
+      border-top-color: #3b82f6;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      flex-shrink: 0;
+    }
+
+    /* ── Section spacer ── */
+    .section { margin-bottom: 52px; }
+
+    /* ── Badge colours ── */
+    .branch-badge.xlsx    { background: #dcfce7; color: #166534; }
+    .branch-badge.road    { background: #dbeafe; color: #1e40af; }
+    .branch-badge.church  { background: #ede9fe; color: #5b21b6; }
+    .branch-badge.skarb   { background: #f1f5f9; color: #374151; }
+    .branch-badge.private { background: #ffedd5; color: #9a3412; }
+    .branch-badge.city    { background: #eff6ff; color: #1d4ed8; }
+    .branch-badge.unknown { background: #f3f4f6; color: #6b7280; }
+
+    @media (max-width: 680px) {
+      .scenarios-grid { grid-template-columns: 1fr; }
+    }
+  </style>
 </head>
 <body>
+<div class="page">
 
-<!-- SCENARIO A -->
-<div class="scenario">
-  <h2>Scenario A — normal, entrust + signature</h2>
-  <div class="card">
-    <div class="card-body">
-      <div class="hero-label">To działką zarządza</div>
-      <div class="hero-name">Zarząd Dróg Miejskich</div>
-      <div class="numer-powierzenia">
-        <span class="label">Numer powierzenia:</span>
-        <span class="label-value"> GN-XX.6345.3453.2026</span>
-      </div>
-      <hr>
-      <div class="data-grid">
-        <div class="field">
-          <div class="label">Numer działki</div>
-          <div class="value parcel-id">04/13/4/473</div>
-        </div>
-        <div class="field">
-          <div class="label">Właściciel</div>
-          <div class="value">Miasto Poznań</div>
-        </div>
-        <div class="field">
-          <div class="label">Powierzchnia</div>
-          <div class="value">0.507 ha</div>
-        </div>
-      </div>
-      <hr>
-      <div class="rodzaj">
-        <div class="label">Rodzaj powierzenia</div>
-        <div class="value">Gospodarowanie zasobem nieruchomości SP oraz gminnymi powiatowymi i wojewódzkimi zasobami nieruchomości</div>
-      </div>
-    </div>
+  <div class="page-header">
+    <h1>Panel scenarios — all configurations</h1>
+    <p>Every possible state of the <code>#panel</code> card, rendered with production copy and app styles. &nbsp;<a href="index.html">← App</a> &nbsp;<a href="styleguide.html">Styleguide</a> &nbsp;<a href="logic-tree.html">Logic tree (HTML)</a></p>
   </div>
-  <div class="card-footer">
-    <span class="footer-block">Wszystkie dane pochodzą z <a href="#">GEOPOZu</a></span>
-    <span class="footer-block">Zaktualizowano: 2026-04-20</span>
-    <span class="footer-block">Autor: Cyryl Kwaśniewski</span>
-  </div>
-</div>
 
-<!-- SCENARIO B -->
-<div class="scenario">
-  <h2>Scenario B — entrust found, no signature</h2>
-  <div class="card">
-    <div class="card-body">
-      <div class="hero-label">To działką zarządza</div>
-      <div class="hero-name" style="margin-bottom:16px">Zarząd Zieleni Miejskiej</div>
-      <hr>
-      <div class="data-grid">
-        <div class="field">
-          <div class="label">Numer działki</div>
-          <div class="value parcel-id">60/01/4/13</div>
-        </div>
-        <div class="field">
-          <div class="label">Właściciel</div>
-          <div class="value">Miasto Poznań</div>
-        </div>
-        <div class="field">
-          <div class="label">Powierzchnia</div>
-          <div class="value">0.089 ha</div>
-        </div>
-      </div>
-      <hr>
-      <div class="rodzaj">
-        <div class="label">Rodzaj powierzenia</div>
-        <div class="value">Trwały zarząd</div>
-      </div>
-    </div>
-  </div>
-  <div class="card-footer">
-    <span class="footer-block">Wszystkie dane pochodzą z <a href="#">GEOPOZu</a></span>
-    <span class="footer-block">Zaktualizowano: 2026-04-20</span>
-    <span class="footer-block">Autor: Cyryl Kwaśniewski</span>
-  </div>
-</div>
+  <!-- ══ 0 — EMPTY STATES ══ -->
+  <div class="section">
+    <div class="section-label">Empty states</div>
+    <div class="scenarios-grid">
 
-<!-- SCENARIO C1 -->
-<div class="scenario">
-  <h2>Scenario C1 — not in xlsx, GEOPOZ implies ZDM</h2>
-  <div class="card">
-    <div class="card-body">
-      <div class="hero-label">To działką zarządza</div>
-      <div class="hero-name">Zarząd Dróg Miejskich</div>
-      <div class="contextual-note">Działka ma innego właściciela, ale ZDM odpowiada za utrzymanie pasa drogowego.</div>
-      <div class="numer-powierzenia">
-        <span class="label">Numer powierzenia:</span>
-        <span class="label-value"> GN-XX.6345.3453.2026</span>
-      </div>
-      <hr>
-      <div class="data-grid">
-        <div class="field">
-          <div class="label">Numer działki</div>
-          <div class="value parcel-id">04/13/4/473</div>
-        </div>
-        <div class="field">
-          <div class="label">Właściciel</div>
-          <div class="value">Miasto Poznań</div>
-        </div>
-        <div class="field">
-          <div class="label">Powierzchnia</div>
-          <div class="value">0.507 ha</div>
-        </div>
-      </div>
-      <hr>
-      <div class="rodzaj">
-        <div class="label">Rodzaj powierzenia</div>
-        <div class="value muted">Wykonywanie zadań zarządcy dróg publicznych</div>
-      </div>
-    </div>
-  </div>
-  <div class="card-footer">
-    <span class="footer-block">Wszystkie dane pochodzą z <a href="#">GEOPOZu</a></span>
-    <span class="footer-block">Zaktualizowano: 2026-04-20</span>
-    <span class="footer-block">Autor: Cyryl Kwaśniewski</span>
-  </div>
-</div>
-
-<!-- SCENARIO C2 -->
-<div class="scenario">
-  <h2>Scenario C2 — not in xlsx, non-city owner</h2>
-  <div class="card">
-    <div class="card-body">
-      <div class="hero-label">To działką zarządza</div>
-      <div class="hero-name orange">Skarb Państwa</div>
-      <div class="contextual-note"><strong>Miasto nie jest jej właścicielem.</strong> W sprawach dotyczących tej działki możesz zwrócić się do Wydziału Gospodarki Nieruchomościami Urzędu Miasta Poznania.</div>
-      <hr>
-      <div class="data-grid">
-        <div class="field">
-          <div class="label">Numer działki</div>
-          <div class="value parcel-id">04/13/4/473</div>
-        </div>
-        <div class="field">
-          <div class="label">Powierzchnia</div>
-          <div class="value">0.507 ha</div>
-        </div>
-      </div>
-      <hr>
-      <div class="rodzaj">
-        <div class="label">Rodzaj powierzenia</div>
-        <div class="value muted">Własność</div>
-      </div>
-    </div>
-  </div>
-  <div class="card-footer">
-    <span class="footer-block">Wszystkie dane pochodzą z <a href="#">GEOPOZu</a></span>
-    <span class="footer-block">Zaktualizowano: 2026-04-20</span>
-    <span class="footer-block">Autor: Cyryl Kwaśniewski</span>
-  </div>
-</div>
-
-<!-- SCENARIO D -->
-<div class="scenario">
-  <h2>Scenario D — multiple entrusts (CZY_CZESC=1)</h2>
-  <div class="card">
-    <div class="card-body">
-      <div class="hero-label">Tą działką zarządza kilka jednostek:</div>
-      <div class="units-grid">
-        <div class="unit-entry">
-          <div class="hero-name">Zarząd Dróg Miejskich</div>
-          <div class="numer-powierzenia">
-            <span class="label">Numer powierzenia:</span>
-            <span class="label-value"> GN-XX.6345.3453.2026</span>
+      <div class="scenario">
+        <div class="scenario-meta">
+          <span class="branch-badge">Idle</span>
+          <div>
+            <div class="scenario-name">Initial — no parcel selected</div>
+            <div class="scenario-condition">app start, no tap yet</div>
           </div>
         </div>
-        <div class="unit-entry">
-          <div class="hero-name">Zarząd Zieleni Miejskiej</div>
-          <div class="numer-powierzenia">
-            <span class="label">Numer powierzenia:</span>
-            <span class="label-value"> GN-XX.6345.3453.2025</span>
+        <div class="card-wrap">
+          <div class="card-idle">
+            <div class="hero-label">Czyja to działka?</div>
+            <div class="contextual-note" style="color:#888">Dotknij dowolnego miejsca na mapie aby sprawdzić zarządcę</div>
           </div>
-        </div>
-        <div class="unit-entry">
-          <div class="hero-name">Zakład Lasów Poznańskich</div>
-          <div class="numer-powierzenia">
-            <span class="label">Numer powierzenia:</span>
-            <span class="label-value"> GN-XX.6345.3453.2024</span>
+          <div class="panel-footer">
+            <span class="footer-block">Dane: <a href="#">GEOPOZ</a></span>
+            <span class="footer-block">Zaktualizowano: 2025-01-15</span>
+            <span class="footer-block">Autor: <a href="#">Cyryl Kwaśniewski</a></span>
           </div>
         </div>
       </div>
-      <hr>
-      <div class="data-grid">
-        <div class="field">
-          <div class="label">Numer działki</div>
-          <div class="value parcel-id">04/13/4/473</div>
+
+      <div class="scenario">
+        <div class="scenario-meta">
+          <span class="branch-badge">Loading</span>
+          <div>
+            <div class="scenario-name">Fetching parcel data</div>
+            <div class="scenario-condition">awaiting /dzialka response</div>
+          </div>
         </div>
-        <div class="field">
-          <div class="label">Właściciel</div>
-          <div class="value">Miasto Poznań</div>
-        </div>
-        <div class="field">
-          <div class="label">Powierzchnia</div>
-          <div class="value">0.507 ha</div>
+        <div class="card-wrap">
+          <div class="card-loading">
+            <div class="spinner"></div>
+            <span>Pobieranie danych…</span>
+          </div>
+          <div class="panel-footer">
+            <span class="footer-block">Dane: <a href="#">GEOPOZ</a></span>
+          </div>
         </div>
       </div>
-      <hr>
-      <div class="rodzaj">
-        <div class="label">Rodzaj powierzenia</div>
-        <div class="value">Trwały zarząd</div>
+
+      <div class="scenario">
+        <div class="scenario-meta">
+          <span class="branch-badge" style="background:#fee2e2;color:#991b1b;">Error</span>
+          <div>
+            <div class="scenario-name">Connection error</div>
+            <div class="scenario-condition">fetch failed or server 5xx</div>
+          </div>
+        </div>
+        <div class="card-wrap">
+          <div class="card-error">Błąd połączenia. Spróbuj ponownie.</div>
+          <div class="panel-footer">
+            <span class="footer-block">Dane: <a href="#">GEOPOZ</a></span>
+          </div>
+        </div>
       </div>
+
     </div>
   </div>
-  <div class="card-footer">
-    <span class="footer-block">Wszystkie dane pochodzą z <a href="#">GEOPOZu</a></span>
-    <span class="footer-block">Zaktualizowano: 2026-04-20</span>
-    <span class="footer-block">Autor: Cyryl Kwaśniewski</span>
-  </div>
-</div>
 
+  <!-- ══ B1–B2 — XLSX ══ -->
+  <div class="section">
+    <div class="section-label">Branches 1–2 — XLSX powierzenia (authoritative — always wins)</div>
+    <div class="scenarios-grid">
+
+      <div class="scenario">
+        <div class="scenario-meta">
+          <span class="branch-badge xlsx">B1</span>
+          <div>
+            <div class="scenario-name">Multiple managers from XLSX</div>
+            <div class="scenario-condition">powList.length &gt; 1</div>
+          </div>
+        </div>
+        <div class="card-wrap">
+          <div style="width:100%">
+            <div class="hero-label">Tą działką zarządza kilka jednostek:</div>
+            <div class="units-grid">
+              <div class="unit-entry">
+                <div class="hero-name">Zarząd Zieleni Miejskiej</div>
+                <div class="numer-pow">
+                  <span class="label">Numer powierzenia:</span>
+                  <span class="numer-pow-value"> ZZM.4140.2.2023</span>
+                </div>
+              </div>
+              <div class="unit-entry">
+                <div class="hero-name">Zarząd Dróg Miejskich</div>
+                <div class="numer-pow">
+                  <span class="label">Numer powierzenia:</span>
+                  <span class="numer-pow-value"> ZDM.4140.5.2022</span>
+                </div>
+              </div>
+            </div>
+            <hr class="card-divider">
+            <div class="fields-row">
+              <div class="field">
+                <div class="label">Numer działki</div>
+                <div class="value parcel-id">100/4</div>
+              </div>
+              <div class="field">
+                <div class="label">Właściciel</div>
+                <div class="value">Miasto Poznań</div>
+              </div>
+              <div class="field">
+                <div class="label">Powierzchnia</div>
+                <div class="value">0,1235&nbsp;ha</div>
+              </div>
+            </div>
+            <hr class="card-divider">
+            <div class="field">
+              <div class="label">Rodzaj powierzenia</div>
+              <div class="value rodzaj">Trwały zarząd</div>
+            </div>
+          </div>
+          <div class="panel-footer">
+            <span class="footer-block">Dane: <a href="#">GEOPOZ</a></span>
+            <span class="footer-block">Zaktualizowano: 2025-01-15</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="scenario">
+        <div class="scenario-meta">
+          <span class="branch-badge xlsx">B2</span>
+          <div>
+            <div class="scenario-name">Single manager from XLSX</div>
+            <div class="scenario-condition">powList.length === 1</div>
+          </div>
+        </div>
+        <div class="card-wrap">
+          <div style="width:100%">
+            <div class="hero-label">Tą działką zarządza</div>
+            <div class="hero-name">Zakład Zagospodarowania Odpadów</div>
+            <div class="numer-pow">
+              <span class="label">Numer powierzenia:</span>
+              <span class="numer-pow-value"> WGN.4140.1.2024</span>
+            </div>
+            <hr class="card-divider">
+            <div class="fields-row">
+              <div class="field">
+                <div class="label">Numer działki</div>
+                <div class="value parcel-id">45/2</div>
+              </div>
+              <div class="field">
+                <div class="label">Właściciel</div>
+                <div class="value">Miasto Poznań</div>
+              </div>
+              <div class="field">
+                <div class="label">Powierzchnia</div>
+                <div class="value">0,3456&nbsp;ha</div>
+              </div>
+            </div>
+            <hr class="card-divider">
+            <div class="field">
+              <div class="label">Rodzaj powierzenia</div>
+              <div class="value rodzaj">Trwały zarząd</div>
+            </div>
+          </div>
+          <div class="panel-footer">
+            <span class="footer-block">Dane: <a href="#">GEOPOZ</a></span>
+            <span class="footer-block">Zaktualizowano: 2025-01-15</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══ B3–B4 — ROADS ══ -->
+  <div class="section">
+    <div class="section-label">Branches 3–4 — Road parcels (isRoads)</div>
+    <div class="scenarios-grid">
+
+      <div class="scenario">
+        <div class="scenario-meta">
+          <span class="branch-badge road">B3</span>
+          <div>
+            <div class="scenario-name">Road — city-owned</div>
+            <div class="scenario-condition">isRoads &amp;&amp; isCityOwned</div>
+          </div>
+        </div>
+        <div class="card-wrap">
+          <div style="width:100%">
+            <div class="hero-label">Tą działką zarządza</div>
+            <div class="hero-name">Zarząd Dróg Miejskich</div>
+            <div class="contextual-note">Jednostka odpowiada za utrzymanie pasa drogowego</div>
+            <hr class="card-divider">
+            <div class="fields-row">
+              <div class="field">
+                <div class="label">Numer działki</div>
+                <div class="value parcel-id">123/1</div>
+              </div>
+              <div class="field">
+                <div class="label">Właściciel</div>
+                <div class="value">Miasto Poznań</div>
+              </div>
+              <div class="field">
+                <div class="label">Powierzchnia</div>
+                <div class="value">0,0823&nbsp;ha</div>
+              </div>
+            </div>
+            <hr class="card-divider">
+            <div class="field">
+              <div class="label">Rodzaj powierzenia</div>
+              <div class="value rodzaj">Zarządzanie drogami dróg publicznych</div>
+            </div>
+          </div>
+          <div class="panel-footer">
+            <span class="footer-block">Dane: <a href="#">GEOPOZ</a></span>
+            <span class="footer-block">Zaktualizowano: 2025-01-15</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="scenario">
+        <div class="scenario-meta">
+          <span class="branch-badge road">B4</span>
+          <div>
+            <div class="scenario-name">Road — non-city owner</div>
+            <div class="scenario-condition">isRoads &amp;&amp; !isCityOwned</div>
+          </div>
+        </div>
+        <div class="card-wrap">
+          <div style="width:100%">
+            <div class="hero-label">Tą działką zarządza</div>
+            <div class="hero-name">Zarząd Dróg Miejskich</div>
+            <div class="contextual-note">Działka ma innego właściciela, ale ZDM odpowiada za utrzymanie pasa drogowego.</div>
+            <hr class="card-divider">
+            <div class="fields-row">
+              <div class="field">
+                <div class="label">Numer działki</div>
+                <div class="value parcel-id">78/3</div>
+              </div>
+              <div class="field">
+                <div class="label">Właściciel</div>
+                <div class="value">Skarb Państwa</div>
+              </div>
+              <div class="field">
+                <div class="label">Powierzchnia</div>
+                <div class="value">0,1102&nbsp;ha</div>
+              </div>
+            </div>
+            <hr class="card-divider">
+            <div class="field">
+              <div class="label">Rodzaj powierzenia</div>
+              <div class="value rodzaj">Zarządzanie drogami dróg publicznych</div>
+            </div>
+          </div>
+          <div class="panel-footer">
+            <span class="footer-block">Dane: <a href="#">GEOPOZ</a></span>
+            <span class="footer-block">Zaktualizowano: 2025-01-15</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══ B5 — CHURCH ══ -->
+  <div class="section">
+    <div class="section-label">Branch 5 — Religious entity (isChurch)</div>
+    <div class="scenarios-grid">
+
+      <div class="scenario">
+        <div class="scenario-meta">
+          <span class="branch-badge church">B5</span>
+          <div>
+            <div class="scenario-name">Church / religious org</div>
+            <div class="scenario-condition">wlasc ∋ 'kościoły' || 'związki wyznaniowe' — showWlasc=false</div>
+          </div>
+        </div>
+        <div class="card-wrap">
+          <div style="width:100%">
+            <div class="hero-label">Właścicielem i zarządcą działki jest</div>
+            <div class="hero-name">Kościoły i związki wyznaniowe</div>
+            <div class="contextual-note" style="color:#888">(kościoły i związki wyznaniowe zarządzają własnością samodzielnie)</div>
+            <hr class="card-divider">
+            <div class="fields-row">
+              <div class="field">
+                <div class="label">Numer działki</div>
+                <div class="value parcel-id">55/1</div>
+              </div>
+              <div class="field">
+                <div class="label">Powierzchnia</div>
+                <div class="value">0,2400&nbsp;ha</div>
+              </div>
+            </div>
+          </div>
+          <div class="panel-footer">
+            <span class="footer-block">Dane: <a href="#">GEOPOZ</a></span>
+            <span class="footer-block">Zaktualizowano: 2025-01-15</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══ B6–B8 — SKARB PAŃSTWA ══ -->
+  <div class="section">
+    <div class="section-label">Branches 6–8 — Skarb Państwa (isSkarb)</div>
+    <div class="scenarios-grid">
+
+      <div class="scenario">
+        <div class="scenario-meta">
+          <span class="branch-badge skarb">B6</span>
+          <div>
+            <div class="scenario-name">SP + użytkowanie wieczyste</div>
+            <div class="scenario-condition">isSkarb &amp;&amp; wlad ∋ 'Użytkowanie wieczyste'</div>
+          </div>
+        </div>
+        <div class="card-wrap">
+          <div style="width:100%">
+            <div class="hero-label">Działka Skarbu Państwa w użytkowaniu wieczystym</div>
+            <div class="contextual-note" style="color:#888">Grunt oddany miastu lub podmiotowi prywatnemu. Szczegóły: Wydział Gospodarki Nieruchomościami UMP.</div>
+            <hr class="card-divider">
+            <div class="fields-row">
+              <div class="field">
+                <div class="label">Numer działki</div>
+                <div class="value parcel-id">201/7</div>
+              </div>
+              <div class="field">
+                <div class="label">Właściciel</div>
+                <div class="value">Skarb Państwa</div>
+              </div>
+              <div class="field">
+                <div class="label">Powierzchnia</div>
+                <div class="value">0,4521&nbsp;ha</div>
+              </div>
+            </div>
+            <hr class="card-divider">
+            <div class="field">
+              <div class="label">Rodzaj powierzenia</div>
+              <div class="value rodzaj">Użytkowanie wieczyste</div>
+            </div>
+          </div>
+          <div class="panel-footer">
+            <span class="footer-block">Dane: <a href="#">GEOPOZ</a></span>
+            <span class="footer-block">Zaktualizowano: 2025-01-15</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="scenario">
+        <div class="scenario-meta">
+          <span class="branch-badge skarb">B7</span>
+          <div>
+            <div class="scenario-name">SP + gospodarowanie zasobem</div>
+            <div class="scenario-condition">isSkarb &amp;&amp; wlad ∋ 'Gospodarowanie zasobem'</div>
+          </div>
+        </div>
+        <div class="card-wrap">
+          <div style="width:100%">
+            <div class="hero-label">Działką zarządza urząd lub jednostka Skarbu Państwa</div>
+            <div class="contextual-note" style="color:#888">Brak szczegółowych danych — w razie pytań zwróć się do Wydziału Gospodarki Nieruchomościami UMP.</div>
+            <hr class="card-divider">
+            <div class="fields-row">
+              <div class="field">
+                <div class="label">Numer działki</div>
+                <div class="value parcel-id">334/2</div>
+              </div>
+              <div class="field">
+                <div class="label">Właściciel</div>
+                <div class="value">Skarb Państwa</div>
+              </div>
+              <div class="field">
+                <div class="label">Powierzchnia</div>
+                <div class="value">0,1890&nbsp;ha</div>
+              </div>
+            </div>
+            <hr class="card-divider">
+            <div class="field">
+              <div class="label">Rodzaj powierzenia</div>
+              <div class="value rodzaj">Gospodarowanie zasobem nieruchomości Skarbu Państwa</div>
+            </div>
+          </div>
+          <div class="panel-footer">
+            <span class="footer-block">Dane: <a href="#">GEOPOZ</a></span>
+            <span class="footer-block">Zaktualizowano: 2025-01-15</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="scenario">
+        <div class="scenario-meta">
+          <span class="branch-badge skarb">B7b</span>
+          <div>
+            <div class="scenario-name">SP + trwały zarząd</div>
+            <div class="scenario-condition">isSkarb &amp;&amp; wlad ∋ 'Trwały zarząd'</div>
+          </div>
+        </div>
+        <div class="card-wrap">
+          <div style="width:100%">
+            <div class="hero-label">Działka w trwałym zarządzie jednostki państwowej lub miejskiej</div>
+            <div class="contextual-note" style="color:#888">W razie pytań zwróć się do Wydziału Gospodarki Nieruchomościami UMP.</div>
+            <hr class="card-divider">
+            <div class="fields-row">
+              <div class="field">
+                <div class="label">Numer działki</div>
+                <div class="value parcel-id">412/5</div>
+              </div>
+              <div class="field">
+                <div class="label">Właściciel</div>
+                <div class="value">Skarb Państwa</div>
+              </div>
+              <div class="field">
+                <div class="label">Powierzchnia</div>
+                <div class="value">0,5600&nbsp;ha</div>
+              </div>
+            </div>
+            <hr class="card-divider">
+            <div class="field">
+              <div class="label">Rodzaj powierzenia</div>
+              <div class="value rodzaj">Trwały zarząd</div>
+            </div>
+          </div>
+          <div class="panel-footer">
+            <span class="footer-block">Dane: <a href="#">GEOPOZ</a></span>
+            <span class="footer-block">Zaktualizowano: 2025-01-15</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="scenario">
+        <div class="scenario-meta">
+          <span class="branch-badge skarb">B8</span>
+          <div>
+            <div class="scenario-name">SP — fallback (WLAD unmatched)</div>
+            <div class="scenario-condition">isSkarb, no WLAD matched above</div>
+          </div>
+        </div>
+        <div class="card-wrap">
+          <div style="width:100%">
+            <div class="hero-label">Działka należy do Skarbu Państwa</div>
+            <div class="contextual-note" style="color:#888">Brak danych o zarządcy — w razie pytań zwróć się do Wydziału Gospodarki Nieruchomościami UMP.</div>
+            <hr class="card-divider">
+            <div class="fields-row">
+              <div class="field">
+                <div class="label">Numer działki</div>
+                <div class="value parcel-id">789/1</div>
+              </div>
+              <div class="field">
+                <div class="label">Właściciel</div>
+                <div class="value">Skarb Państwa</div>
+              </div>
+              <div class="field">
+                <div class="label">Powierzchnia</div>
+                <div class="value">0,0912&nbsp;ha</div>
+              </div>
+            </div>
+          </div>
+          <div class="panel-footer">
+            <span class="footer-block">Dane: <a href="#">GEOPOZ</a></span>
+            <span class="footer-block">Zaktualizowano: 2025-01-15</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══ B9a–B9 — NON-CITY ══ -->
+  <div class="section">
+    <div class="section-label">Branches 9a–9 — Non-city owners</div>
+    <div class="scenarios-grid">
+
+      <div class="scenario">
+        <div class="scenario-meta">
+          <span class="branch-badge private">B9a</span>
+          <div>
+            <div class="scenario-name">Municipal company / gminna unit</div>
+            <div class="scenario-condition">isGminnaEntity — must precede B9</div>
+          </div>
+        </div>
+        <div class="card-wrap">
+          <div style="width:100%">
+            <div class="hero-label">Działka należy do miejskiej spółki lub jednostki gminnej</div>
+            <div class="contextual-note" style="color:#888">Właścicielem jest podmiot powiązany z Miastem Poznań. W sprawach dotyczących tej działki zwróć się do Wydziału Gospodarki Nieruchomościami UMP.</div>
+            <hr class="card-divider">
+            <div class="fields-row">
+              <div class="field">
+                <div class="label">Numer działki</div>
+                <div class="value parcel-id">501/3</div>
+              </div>
+              <div class="field">
+                <div class="label">Właściciel</div>
+                <div class="value">Gminna osoba prawna</div>
+              </div>
+              <div class="field">
+                <div class="label">Powierzchnia</div>
+                <div class="value">1,2300&nbsp;ha</div>
+              </div>
+            </div>
+          </div>
+          <div class="panel-footer">
+            <span class="footer-block">Dane: <a href="#">GEOPOZ</a></span>
+            <span class="footer-block">Zaktualizowano: 2025-01-15</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="scenario">
+        <div class="scenario-meta">
+          <span class="branch-badge private">B9</span>
+          <div>
+            <div class="scenario-name">Private / other owner</div>
+            <div class="scenario-condition">!isCityOwned catch-all — showWlasc=false, orange hero</div>
+          </div>
+        </div>
+        <div class="card-wrap">
+          <div style="width:100%">
+            <div class="hero-label">Tą działką zarządza</div>
+            <div class="hero-name orange">Osoba fizyczna</div>
+            <div class="contextual-note"><strong>Miasto nie jest jej właścicielem.</strong> W sprawach dotyczących tej działki możesz zwrócić się do Wydziału Gospodarki Nieruchomościami Urzędu Miasta Poznania.</div>
+            <hr class="card-divider">
+            <div class="fields-row">
+              <div class="field">
+                <div class="label">Numer działki</div>
+                <div class="value parcel-id">220/8</div>
+              </div>
+              <div class="field">
+                <div class="label">Powierzchnia</div>
+                <div class="value">0,0650&nbsp;ha</div>
+              </div>
+            </div>
+          </div>
+          <div class="panel-footer">
+            <span class="footer-block">Dane: <a href="#">GEOPOZ</a></span>
+            <span class="footer-block">Zaktualizowano: 2025-01-15</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══ B10–B13 — CITY OWNED ══ -->
+  <div class="section">
+    <div class="section-label">Branches 10–13 — City-owned (isCityOwned)</div>
+    <div class="scenarios-grid">
+
+      <div class="scenario">
+        <div class="scenario-meta">
+          <span class="branch-badge city">B10</span>
+          <div>
+            <div class="scenario-name">City + private co-ownership</div>
+            <div class="scenario-condition">isMixedOwnership &amp;&amp; wlad ∋ 'Gospodarowanie zasobem' — showWlasc=false</div>
+          </div>
+        </div>
+        <div class="card-wrap">
+          <div style="width:100%">
+            <div class="hero-label">Działka ze współwłasnością Miasta i osób prywatnych</div>
+            <div class="contextual-note" style="color:#888">To prawdopodobnie grunt pod budynkiem wielolokalowym (wspólnota mieszkaniowa)</div>
+            <hr class="card-divider">
+            <div class="fields-row">
+              <div class="field">
+                <div class="label">Numer działki</div>
+                <div class="value parcel-id">88/6</div>
+              </div>
+              <div class="field">
+                <div class="label">Powierzchnia</div>
+                <div class="value">0,0340&nbsp;ha</div>
+              </div>
+            </div>
+            <hr class="card-divider">
+            <div class="field">
+              <div class="label">Rodzaj powierzenia</div>
+              <div class="value rodzaj">Gospodarowanie zasobem nieruchomości Miasta Poznania</div>
+            </div>
+          </div>
+          <div class="panel-footer">
+            <span class="footer-block">Dane: <a href="#">GEOPOZ</a></span>
+            <span class="footer-block">Zaktualizowano: 2025-01-15</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="scenario">
+        <div class="scenario-meta">
+          <span class="branch-badge city">B11</span>
+          <div>
+            <div class="scenario-name">City — WGN asset pool</div>
+            <div class="scenario-condition">isCityOwned &amp;&amp; wlad ∋ 'Gospodarowanie zasobem'</div>
+          </div>
+        </div>
+        <div class="card-wrap">
+          <div style="width:100%">
+            <div class="hero-label">Tą działką zarządza</div>
+            <div class="hero-name">Wydział Gospodarki Nieruchomościami</div>
+            <hr class="card-divider">
+            <div class="fields-row">
+              <div class="field">
+                <div class="label">Numer działki</div>
+                <div class="value parcel-id">150/2</div>
+              </div>
+              <div class="field">
+                <div class="label">Właściciel</div>
+                <div class="value">Miasto Poznań</div>
+              </div>
+              <div class="field">
+                <div class="label">Powierzchnia</div>
+                <div class="value">0,2100&nbsp;ha</div>
+              </div>
+            </div>
+            <hr class="card-divider">
+            <div class="field">
+              <div class="label">Rodzaj powierzenia</div>
+              <div class="value rodzaj">Gospodarowanie zasobem nieruchomości Miasta Poznania</div>
+            </div>
+          </div>
+          <div class="panel-footer">
+            <span class="footer-block">Dane: <a href="#">GEOPOZ</a></span>
+            <span class="footer-block">Zaktualizowano: 2025-01-15</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="scenario">
+        <div class="scenario-meta">
+          <span class="branch-badge city">B12</span>
+          <div>
+            <div class="scenario-name">City — użytkowanie wieczyste</div>
+            <div class="scenario-condition">isCityOwned &amp;&amp; wlad ∋ 'Użytkowanie wieczyste'</div>
+          </div>
+        </div>
+        <div class="card-wrap">
+          <div style="width:100%">
+            <div class="hero-label">Działka w użytkowaniu wieczystym</div>
+            <div class="contextual-note" style="color:#888">Grunt miejski oddany w użytkowanie wieczyste — najprawdopodobniej wspólnocie, firmie lub osobie prywatnej.</div>
+            <hr class="card-divider">
+            <div class="fields-row">
+              <div class="field">
+                <div class="label">Numer działki</div>
+                <div class="value parcel-id">303/4</div>
+              </div>
+              <div class="field">
+                <div class="label">Właściciel</div>
+                <div class="value">Miasto Poznań</div>
+              </div>
+              <div class="field">
+                <div class="label">Powierzchnia</div>
+                <div class="value">0,1875&nbsp;ha</div>
+              </div>
+            </div>
+            <hr class="card-divider">
+            <div class="field">
+              <div class="label">Rodzaj powierzenia</div>
+              <div class="value rodzaj">Użytkowanie wieczyste</div>
+            </div>
+          </div>
+          <div class="panel-footer">
+            <span class="footer-block">Dane: <a href="#">GEOPOZ</a></span>
+            <span class="footer-block">Zaktualizowano: 2025-01-15</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="scenario">
+        <div class="scenario-meta">
+          <span class="branch-badge city">B13</span>
+          <div>
+            <div class="scenario-name">City — trwały zarząd</div>
+            <div class="scenario-condition">isCityOwned &amp;&amp; wlad ∋ 'Trwały zarząd'</div>
+          </div>
+        </div>
+        <div class="card-wrap">
+          <div style="width:100%">
+            <div class="hero-label">Działka w trwałym zarządzie jednostki miejskiej</div>
+            <div class="contextual-note" style="color:#888">W razie pytań zwróć się do Wydziału Gospodarki Nieruchomościami UMP.</div>
+            <hr class="card-divider">
+            <div class="fields-row">
+              <div class="field">
+                <div class="label">Numer działki</div>
+                <div class="value parcel-id">66/9</div>
+              </div>
+              <div class="field">
+                <div class="label">Właściciel</div>
+                <div class="value">Miasto Poznań</div>
+              </div>
+              <div class="field">
+                <div class="label">Powierzchnia</div>
+                <div class="value">0,8900&nbsp;ha</div>
+              </div>
+            </div>
+            <hr class="card-divider">
+            <div class="field">
+              <div class="label">Rodzaj powierzenia</div>
+              <div class="value rodzaj">Trwały zarząd</div>
+            </div>
+          </div>
+          <div class="panel-footer">
+            <span class="footer-block">Dane: <a href="#">GEOPOZ</a></span>
+            <span class="footer-block">Zaktualizowano: 2025-01-15</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══ B14 — FALLBACK ══ -->
+  <div class="section">
+    <div class="section-label">Branch 14 — Unknown / fallback</div>
+    <div class="scenarios-grid">
+
+      <div class="scenario">
+        <div class="scenario-meta">
+          <span class="branch-badge unknown">B14</span>
+          <div>
+            <div class="scenario-name">Unrecognised WLASC / WLAD combination</div>
+            <div class="scenario-condition">no branch matched — monitor for EGIB vocab changes</div>
+          </div>
+        </div>
+        <div class="card-wrap">
+          <div style="width:100%">
+            <div class="hero-label">Tą działką zarządza</div>
+            <div class="hero-name" style="color:#9ca3af;">brak informacji</div>
+            <hr class="card-divider">
+            <div class="fields-row">
+              <div class="field">
+                <div class="label">Numer działki</div>
+                <div class="value parcel-id">999/1</div>
+              </div>
+              <div class="field">
+                <div class="label">Właściciel</div>
+                <div class="value">Nieznana jednostka</div>
+              </div>
+              <div class="field">
+                <div class="label">Powierzchnia</div>
+                <div class="value">0,1500&nbsp;ha</div>
+              </div>
+            </div>
+            <hr class="card-divider">
+            <div class="field">
+              <div class="label">Rodzaj powierzenia</div>
+              <div class="value rodzaj">Nieznane powierzenie</div>
+            </div>
+          </div>
+          <div class="panel-footer">
+            <span class="footer-block">Dane: <a href="#">GEOPOZ</a></span>
+            <span class="footer-block">Zaktualizowano: 2025-01-15</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
 </body>
 </html>

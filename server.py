@@ -11,6 +11,8 @@ from flask import Flask, jsonify, request, send_from_directory
 import geopoz_client
 import parcel_analyzer
 
+APP_VERSION = 'v1.1.0'
+
 app = Flask(__name__, static_folder='.')
 
 _LOG_PATH   = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'analytics.log')
@@ -67,6 +69,11 @@ def _log_dzialka(ozn_dz):
     with open(_LOG_PATH, 'a', encoding='utf-8') as f:
         f.write(f'| {ts} | {ozn_dz} | {ip} | {ua} |\n')
     threading.Thread(target=_send_log_email, args=(ozn_dz, ip, ua, ts), daemon=True).start()
+
+
+@app.route('/api/version')
+def version():
+    return jsonify({'version': APP_VERSION})
 
 
 @app.route('/')

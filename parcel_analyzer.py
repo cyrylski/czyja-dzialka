@@ -65,6 +65,27 @@ def _is_mixed_ownership(wlasc: str) -> bool:
 def _is_gminna_entity(wlasc: str) -> bool:
     return not _is_city_owned(wlasc) and not _is_skarb(wlasc) and 'gminna' in wlasc.lower()
 
+def _is_wspolnota(wlasc: str) -> bool:
+    return wlasc.startswith('wspólnota:')
+
+def _is_prawo_zwiazane(wlasc: str) -> bool:
+    return 'prawo związane:' in wlasc
+
+def _is_spolka_zagraniczna(wlasc: str) -> bool:
+    return 'spółka handlowa będąca cudzoziemcem' in wlasc
+
+def _is_spolka_krajowa(wlasc: str) -> bool:
+    return 'spółka handlowa niebędąca cudzoziemcem' in wlasc
+
+def _is_powiat(wlasc: str) -> bool:
+    return 'powiat' in wlasc.lower()
+
+def _is_stowarzyszenie(wlasc: str) -> bool:
+    return 'stowarzyszenie' in wlasc.lower()
+
+def _is_osoba_fizyczna(wlasc: str) -> bool:
+    return 'osoba fizyczna' in wlasc and not _is_prawo_zwiazane(wlasc) and not _is_wspolnota(wlasc)
+
 
 def analyze_parcel(
     attrs: ParcelAttributes,
@@ -130,7 +151,7 @@ def analyze_parcel(
             ScenarioType.ZDM_CITY,
             'Tą działką zarządza',
             'Zarząd Dróg Miejskich',
-            '(jednostka odpowiada za utrzymanie pasa drogowego)',
+            'Jednostka odpowiada za utrzymanie pasa drogowego.',
             True, [], 'inferred',
         )
 
@@ -150,7 +171,7 @@ def analyze_parcel(
             ScenarioType.CHURCH,
             'Właścicielem i zarządcą działki jest',
             wlasc or 'instytucja kościelna',
-            '(kościoły i związki wyznaniowe zarządzają własnością samodzielnie)',
+            'Kościoły i związki wyznaniowe zarządzają własnością samodzielnie.',
             False, [], 'inferred',
         )
 
@@ -160,7 +181,7 @@ def analyze_parcel(
             ScenarioType.SKARB_UW,
             'Działka Skarbu Państwa w użytkowaniu wieczystym',
             None,
-            'Grunt oddany miastu lub podmiotowi prywatnemu. Szczegóły: Wydział Gospodarki Nieruchomościami UMP.',
+            'Grunt powierzony miastu lub podmiotowi prywatnemu. Szczegóły: <a href="https://bip.poznan.pl/bip/wydzial-gospodarki-nieruchomosciami,24/">Wydział Gospodarki Nieruchomościami</a>.',
             True, [], 'inferred',
         )
 
@@ -170,7 +191,7 @@ def analyze_parcel(
             ScenarioType.SKARB_ZASOB,
             'Działką zarządza urząd lub jednostka Skarbu Państwa',
             None,
-            'Brak szczegółowych danych \u2014 w razie pytań zwróć się do Wydziału Gospodarki Nieruchomościami UMP.',
+            'Brak szczegółowych danych. W razie pytań zwróć się do <a href="https://bip.poznan.pl/bip/wydzial-gospodarki-nieruchomosciami,24/">Wydziału Gospodarki Nieruchomościami</a>.',
             True, [], 'inferred',
         )
 
@@ -180,7 +201,7 @@ def analyze_parcel(
             ScenarioType.SKARB_TZ,
             'Działka w trwałym zarządzie jednostki państwowej lub miejskiej',
             None,
-            'W razie pytań zwróć się do Wydziału Gospodarki Nieruchomościami UMP.',
+            'W razie pytań zwróć się do <a href="https://bip.poznan.pl/bip/wydzial-gospodarki-nieruchomosciami,24/">Wydziału Gospodarki Nieruchomościami</a>.',
             True, [], 'inferred',
         )
 
@@ -190,7 +211,7 @@ def analyze_parcel(
             ScenarioType.SKARB_OTHER,
             'Działka należy do Skarbu Państwa',
             None,
-            'Brak danych o zarządcy \u2014 w razie pytań zwróć się do Wydziału Gospodarki Nieruchomościami UMP.',
+            'Brak danych o zarządcy. W razie pytań zwróć się do <a href="https://bip.poznan.pl/bip/wydzial-gospodarki-nieruchomosciami,24/">Wydziału Gospodarki Nieruchomościami</a>.',
             True, [], 'inferred',
         )
 
@@ -200,18 +221,101 @@ def analyze_parcel(
             ScenarioType.GMINNA_ENTITY,
             'Działka należy do miejskiej spółki lub jednostki gminnej',
             None,
-            'Właścicielem jest podmiot powiązany z Miastem Poznań. W sprawach dotyczących tej działki zwróć się do Wydziału Gospodarki Nieruchomościami UMP.',
+            'Właścicielem jest podmiot powiązany z Miastem Poznań. W sprawach dotyczących tej działki zwróć się do <a href="https://bip.poznan.pl/bip/wydzial-gospodarki-nieruchomosciami,24/">Wydziału Gospodarki Nieruchomościami</a>.',
             True, [], 'inferred',
         )
 
-    # 9 — Private / other non-city non-state non-church owner
+    # 9 — Private owner (non-city, non-state, non-church, non-gminna)
+    # Sub-branches evaluated top-to-bottom; first match wins.
     if not is_city:
+        # 9-B: wspólnota mieszkaniowa
+        if _is_wspolnota(wlasc):
+            return _base(
+                ScenarioType.PRIVATE,
+                'Działka stanowi grunt pod budynkiem wielolokalowym',
+                None,
+                'Gruntem zarządza wspólnota mieszkaniowa budynku. W sprawach dotyczących terenu zwróć się do zarządu wspólnoty (dane na tablicy informacyjnej w klatce schodowej) lub do zarządcy nieruchomości.',
+                True, [], 'inferred',
+            )
+
+        # 9-C: prawo związane z lokalem
+        if _is_prawo_zwiazane(wlasc):
+            return _base(
+                ScenarioType.PRIVATE,
+                'Działka stanowi grunt pod budynkiem \u2014 własność powiązana z lokalami',
+                None,
+                'Każdy właściciel lokalu w tym budynku posiada ułamkowy udział własności tego gruntu, nierozerwalnie związany z prawem do swojego mieszkania (art.\u00a03 ustawy o własności lokali). Sprawami gruntowymi zajmuje się wspólnota mieszkaniowa budynku \u2014 zwróć się do jej zarządu lub zarządcy nieruchomości.',
+                True, [], 'inferred',
+            )
+
+        # 9-Z early exit: comma = multiple co-owners, use fallback note
+        # (wspólnota: and prawo związane: already handled above; anything else with a comma is mixed)
+        if ',' in wlasc:
+            return _base(
+                ScenarioType.PRIVATE,
+                'Ta działka jest własnością prywatną',
+                None,
+                'Działka należy do kilku współwłaścicieli (osoby prywatne lub podmioty gospodarcze). Szczegóły własności znajdziesz w Księdze Wieczystej: <a href="https://ekw.ms.gov.pl">ekw.ms.gov.pl</a>. Numer KW możesz uzyskać w <a href="https://geopoz.poznan.pl/geo/kontakt/dane-adresowe/1522,Dane-adresowe.html">Geopoz \u2014 Wydział Geodezji i Kartografii</a>.',
+                True, [], 'inferred',
+            )
+
+        # 9-E: zagraniczny podmiot (sprawdzany przed krajowym — bardziej szczegółowy)
+        if _is_spolka_zagraniczna(wlasc):
+            return _base(
+                ScenarioType.PRIVATE,
+                'Ta działka należy do zagranicznego podmiotu prawnego',
+                None,
+                'Właścicielem jest podmiot zarejestrowany za granicą (nabycie nieruchomości przez cudzoziemca wymaga zezwolenia MSWiA). Jeśli podmiot posiada oddział w Polsce, możesz go znaleźć w KRS: <a href="https://ekrs.ms.gov.pl">ekrs.ms.gov.pl</a>. Szczegóły własności gruntu \u2014 w Księdze Wieczystej: <a href="https://ekw.ms.gov.pl">ekw.ms.gov.pl</a>.',
+                True, [], 'inferred',
+            )
+
+        # 9-D: polska spółka handlowa
+        if _is_spolka_krajowa(wlasc):
+            return _base(
+                ScenarioType.PRIVATE,
+                'Ta działka należy do polskiej spółki handlowej',
+                None,
+                'Właścicielem jest spółka prawa handlowego zarejestrowana w Polsce. Dane firmy (adres, reprezentacja) możesz sprawdzić bezpłatnie w Krajowym Rejestrze Sądowym: <a href="https://ekrs.ms.gov.pl">ekrs.ms.gov.pl</a>. Szczegóły własności gruntu \u2014 w Księdze Wieczystej: <a href="https://ekw.ms.gov.pl">ekw.ms.gov.pl</a>.',
+                True, [], 'inferred',
+            )
+
+        # 9-F: powiat
+        if _is_powiat(wlasc):
+            return _base(
+                ScenarioType.PRIVATE,
+                'Ta działka należy do powiatu',
+                None,
+                'Właścicielem jest Powiat Poznański. W sprawach dotyczących tej nieruchomości zwróć się do Starostwa Powiatowego w Poznaniu, Wydział Geodezji i Gospodarki Nieruchomościami: <a href="https://powiat.poznan.pl/kontakt">powiat.poznan.pl/kontakt</a>.',
+                True, [], 'inferred',
+            )
+
+        # 9-G: stowarzyszenie
+        if _is_stowarzyszenie(wlasc):
+            return _base(
+                ScenarioType.PRIVATE,
+                'Ta działka należy do stowarzyszenia lub organizacji',
+                None,
+                'Właścicielem jest zarejestrowane stowarzyszenie, które zarządza nieruchomością przez swój zarząd. Dane organizacji (adres, skład zarządu) możesz znaleźć bezpłatnie w Krajowym Rejestrze Sądowym: <a href="https://ekrs.ms.gov.pl">ekrs.ms.gov.pl</a>.',
+                True, [], 'inferred',
+            )
+
+        # 9-A: osoba fizyczna
+        if _is_osoba_fizyczna(wlasc):
+            return _base(
+                ScenarioType.PRIVATE,
+                'Ta działka jest własnością prywatną',
+                None,
+                'Właścicielem jest osoba fizyczna lub kilka osób prywatnych. Szczegóły własności znajdziesz w Księdze Wieczystej \u2014 numer KW możesz uzyskać w <a href="https://geopoz.poznan.pl/geo/kontakt/dane-adresowe/1522,Dane-adresowe.html">Geopoz \u2014 Wydział Geodezji i Kartografii</a> lub wyszukać na stronie <a href="https://ekw.ms.gov.pl">ekw.ms.gov.pl</a>.',
+                True, [], 'inferred',
+            )
+
+        # 9-Z: fallback (współwłasność mieszana lub nierozpoznany typ)
         return _base(
             ScenarioType.PRIVATE,
-            'Tą działką zarządza',
-            wlasc or 'nieznany',
-            '<strong>Miasto nie jest jej właścicielem.</strong> W sprawach dotyczących tej działki możesz zwrócić się do Wydziału Gospodarki Nieruchomościami Urzędu Miasta Poznania.',
-            False, [], 'inferred',
+            'Ta działka jest własnością prywatną',
+            None,
+            'Działka należy do kilku współwłaścicieli (osoby prywatne lub podmioty gospodarcze). Szczegóły własności znajdziesz w Księdze Wieczystej: <a href="https://ekw.ms.gov.pl">ekw.ms.gov.pl</a>. Numer KW możesz uzyskać w <a href="https://geopoz.poznan.pl/geo/kontakt/dane-adresowe/1522,Dane-adresowe.html">Geopoz \u2014 Wydział Geodezji i Kartografii</a>.',
+            True, [], 'inferred',
         )
 
     # 10 — City + private co-ownership + Gospodarowanie zasobem (typically wspólnota plot)
@@ -239,7 +343,7 @@ def analyze_parcel(
             ScenarioType.CITY_UW,
             'Działka w użytkowaniu wieczystym',
             None,
-            'Grunt miejski oddany w użytkowanie wieczyste \u2014 najprawdopodobniej wspólnocie, firmie lub osobie prywatnej.',
+            'Grunt miejski oddany w użytkowanie wieczyste \u2014 najprawdopodobniej wspólnocie mieszkaniowej, spółdzielni, firmie lub osobie prywatnej.',
             True, [], 'inferred',
         )
 
@@ -249,7 +353,7 @@ def analyze_parcel(
             ScenarioType.CITY_TZ,
             'Działka w trwałym zarządzie jednostki miejskiej',
             None,
-            'W razie pytań zwróć się do Wydziału Gospodarki Nieruchomościami UMP.',
+            'W razie pytań zwróć się do <a href="https://bip.poznan.pl/bip/wydzial-gospodarki-nieruchomosciami,24/">Wydziału Gospodarki Nieruchomościami</a>.',
             True, [], 'inferred',
         )
 

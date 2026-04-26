@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.1.2 — 2026-04-26
+
+### Added
+- Base map layer toggle: switch between OSM contour map and Esri satellite imagery
+
+---
+
 ## v1.1.1 — 2026-04-26
 
 ### Fixed

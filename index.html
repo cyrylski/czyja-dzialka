@@ -191,12 +191,38 @@
       gap: 20px;
     }
 
+    #layer-toggle {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 1000;
+      background: white;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: #374151;
+      cursor: pointer;
+      box-shadow: 0 1px 5px rgba(0,0,0,0.25);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.2s, color 0.2s;
+    }
+    #layer-toggle:hover { background: #f9fafb; }
+    #layer-toggle.satellite { background: #1a56a0; color: white; }
+
   </style>
 </head>
 <body>
 
 <div id="map-wrap">
   <div id="map"></div>
+  <button id="layer-toggle" title="Zmień podkład mapy">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+    Satelita
+  </button>
 </div>
 
 <div id="panel">
@@ -230,10 +256,18 @@
 <script>
   const map = L.map('map', { zoomControl: true, doubleClickZoom: true }).setView([52.4064, 16.9252], 13);
 
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap',
     maxZoom: 20
   }).addTo(map);
+
+  const satelliteLayer = L.tileLayer(
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    {
+      attribution: 'Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics',
+      maxZoom: 20
+    }
+  );
 
   // Warstwa struktury własności działek z GEOPOZ (WMS, półprzezroczysta)
   L.tileLayer.wms('https://wms2.geopoz.poznan.pl/geoserver/egib/ows', {
@@ -253,6 +287,25 @@
     opacity: 0.4,
     maxZoom: 20
   }).addTo(map);
+
+  // Przełącznik warstwy bazowej
+  let isSatellite = false;
+  document.getElementById('layer-toggle').addEventListener('click', function() {
+    isSatellite = !isSatellite;
+    if (isSatellite) {
+      map.removeLayer(osmLayer);
+      satelliteLayer.addTo(map);
+      satelliteLayer.bringToBack();
+      this.classList.add('satellite');
+      this.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg> Mapa';
+    } else {
+      map.removeLayer(satelliteLayer);
+      osmLayer.addTo(map);
+      osmLayer.bringToBack();
+      this.classList.remove('satellite');
+      this.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> Satelita';
+    }
+  });
 
   // Geolokalizacja przy starcie
   if (navigator.geolocation) {

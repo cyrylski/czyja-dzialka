@@ -255,7 +255,7 @@ def analyze_parcel(
                 ScenarioType.PRIVATE,
                 'Ta działka jest własnością prywatną',
                 None,
-                'Działka należy do kilku współwłaścicieli (osoby prywatne lub podmioty gospodarcze). Szczegóły własności znajdziesz w Księdze Wieczystej: <a href="https://ekw.ms.gov.pl">ekw.ms.gov.pl</a>. Numer KW możesz uzyskać w <a href="https://geopoz.poznan.pl/geo/kontakt/dane-adresowe/1522,Dane-adresowe.html">Geopoz \u2014 Wydział Geodezji i Kartografii</a>.',
+                'Działka należy do kilku współwłaścicieli (osoby prywatne lub podmioty gospodarcze). Dane właścicieli nie są dostępne w publicznych rejestrach online.',
                 True, [], 'inferred',
             )
 
@@ -265,7 +265,7 @@ def analyze_parcel(
                 ScenarioType.PRIVATE,
                 'Ta działka należy do zagranicznego podmiotu prawnego',
                 None,
-                'Właścicielem jest podmiot zarejestrowany za granicą (nabycie nieruchomości przez cudzoziemca wymaga zezwolenia MSWiA). Jeśli podmiot posiada oddział w Polsce, możesz go znaleźć w KRS: <a href="https://ekrs.ms.gov.pl">ekrs.ms.gov.pl</a>. Szczegóły własności gruntu \u2014 w Księdze Wieczystej: <a href="https://ekw.ms.gov.pl">ekw.ms.gov.pl</a>.',
+                'Właścicielem jest podmiot zarejestrowany za granicą (nabycie nieruchomości przez cudzoziemca wymaga zezwolenia MSWiA). Danych właściciela nie można ustalić za pomocą publicznych rejestrów online \u2014 nazwa podmiotu nie jest ujawniana w EGIB.',
                 True, [], 'inferred',
             )
 
@@ -275,7 +275,7 @@ def analyze_parcel(
                 ScenarioType.PRIVATE,
                 'Ta działka należy do polskiej spółki handlowej',
                 None,
-                'Właścicielem jest spółka prawa handlowego zarejestrowana w Polsce. Dane firmy (adres, reprezentacja) możesz sprawdzić bezpłatnie w Krajowym Rejestrze Sądowym: <a href="https://ekrs.ms.gov.pl">ekrs.ms.gov.pl</a>. Szczegóły własności gruntu \u2014 w Księdze Wieczystej: <a href="https://ekw.ms.gov.pl">ekw.ms.gov.pl</a>.',
+                'Właścicielem jest polska spółka handlowa. Danych właściciela nie można ustalić za pomocą publicznych rejestrów online \u2014 nazwa spółki nie jest ujawniana w EGIB.',
                 True, [], 'inferred',
             )
 
@@ -305,7 +305,7 @@ def analyze_parcel(
                 ScenarioType.PRIVATE,
                 'Ta działka jest własnością prywatną',
                 None,
-                'Właścicielem jest osoba fizyczna lub kilka osób prywatnych. Szczegóły własności znajdziesz w Księdze Wieczystej \u2014 numer KW możesz uzyskać w <a href="https://geopoz.poznan.pl/geo/kontakt/dane-adresowe/1522,Dane-adresowe.html">Geopoz \u2014 Wydział Geodezji i Kartografii</a> lub wyszukać na stronie <a href="https://ekw.ms.gov.pl">ekw.ms.gov.pl</a>.',
+                'Właścicielem jest osoba fizyczna. Dane właściciela nie są dostępne w publicznych rejestrach online.',
                 True, [], 'inferred',
             )
 
@@ -314,7 +314,7 @@ def analyze_parcel(
             ScenarioType.PRIVATE,
             'Ta działka jest własnością prywatną',
             None,
-            'Działka należy do kilku współwłaścicieli (osoby prywatne lub podmioty gospodarcze). Szczegóły własności znajdziesz w Księdze Wieczystej: <a href="https://ekw.ms.gov.pl">ekw.ms.gov.pl</a>. Numer KW możesz uzyskać w <a href="https://geopoz.poznan.pl/geo/kontakt/dane-adresowe/1522,Dane-adresowe.html">Geopoz \u2014 Wydział Geodezji i Kartografii</a>.',
+            'Działka należy do kilku współwłaścicieli (osoby prywatne lub podmioty gospodarcze). Dane właścicieli nie są dostępne w publicznych rejestrach online.',
             True, [], 'inferred',
         )
 

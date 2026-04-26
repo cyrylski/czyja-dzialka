@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.1.1 — 2026-04-26
+
+### Fixed
+- Removed misleading references to ekw.ms.gov.pl and ekrs.ms.gov.pl from all private ownership scenarios — neither can be searched by parcel number; company names are not exposed in EGIB (confirmed via UODO/GDPR ruling); KW numbers are not publicly searchable by parcel identifier
+- Updated contextual notes for osoba fizyczna, spółka krajowa, spółka zagraniczna, and co-owner branches to honestly state data is not available in public registries
+
+---
+
 ## v1.1.0 — 2026-04-26
 
 ### Added

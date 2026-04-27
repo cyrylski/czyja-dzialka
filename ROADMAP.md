@@ -85,7 +85,13 @@
 
 ### 2026-04-27
 
-**Data sources: trwały zarząd + reorganization**
+**v1.1.4 — Fix: TZ CSV checked before GEOPOZ inference (same session)**
+
+- TZ CSV (trwały zarząd) is now checked as **branch 3** in the decision tree — immediately after the two XLSX powierzenia branches and before all GEOPOZ-inferred logic.
+- Previously, TZ data was only consulted deep inside `SKARB_TZ`/`CITY_TZ` branches, meaning it was silently ignored whenever GEOPOZ returned `Zarządzanie zasobem`, `Gospodarowanie zasobem`, an empty WLAD, or anything other than the literal string `Trwały zarząd`. Users got "brak informacji" or wrong manager names for ~2500 parcels.
+- Now: if a parcel's `OZN_DZ` matches the TZ CSV, the confirmed unit name is shown regardless of what GEOPOZ sends back for WLAD.
+
+**v1.1.3 — Data sources: trwały zarząd + reorganization**
 
 - Added second static data source: `data/trwaly-zarzad-YYYY-MM-DD.csv` (report `reportId=2000092` from sipaplikacje.geopoz.poznan.pl) — 2616 parcels in permanent management (trwały zarząd), keyed by `Pełny numer działki`.
 - Moved `powierzenia-*.xlsx` from project root into new `data/` subdirectory alongside the new CSV.

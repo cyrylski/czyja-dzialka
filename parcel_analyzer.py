@@ -151,7 +151,18 @@ def analyze_parcel(
             None, True, pow_entries, 'confirmed',
         )
 
-    # 3 — Road parcel, city-owned → ZDM (Art. 19 ust. 5 UoDP)
+    # 3 — TZ CSV: parcel found in trwały zarząd registry — confirmed regardless of WLAD
+    if tz_entries:
+        type_ = ScenarioType.SKARB_TZ if is_skarb else ScenarioType.CITY_TZ
+        return _base(
+            type_,
+            'Tą działką zarządza',
+            tz_entries[0].jednostka or 'jednostka w trwałym zarządzie',
+            'Działka oddana w trwały zarząd (rejestr WGN).',
+            True, [], 'confirmed', tz=tz_entries,
+        )
+
+    # 4 — Road parcel, city-owned → ZDM (Art. 19 ust. 5 UoDP)
     if is_roads and is_city:
         return _base(
             ScenarioType.ZDM_CITY,

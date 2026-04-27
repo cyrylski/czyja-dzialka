@@ -11,7 +11,7 @@ from flask import Flask, jsonify, request, send_from_directory
 import geopoz_client
 import parcel_analyzer
 
-APP_VERSION = 'v1.1.3'
+APP_VERSION = 'v1.1.4'
 
 app = Flask(__name__, static_folder='.')
 

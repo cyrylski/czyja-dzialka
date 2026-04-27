@@ -23,38 +23,37 @@
       z-index: 1000;
     }
 
-    h1 {
-      font-size: 1.75rem;
-      font-weight: 700;
-      color: #101828;
-      letter-spacing: 0.37px;
-    }
-
     #card-wrap {
+      position: relative;
       background: white;
       border-radius: 16px 16px 0 0;
       box-shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.1);
       padding: 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
     }
 
     #card {
-      min-height: 80px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      min-height: 60px;
+      padding-right: 36px;
     }
 
-    #card.loading { color: #888; font-size: 0.875rem; }
-    #card.error   { color: #e53e3e; font-size: 0.875rem; }
+    #card.loading {
+      display: flex;
+      align-items: center;
+      color: #888;
+      font-size: 0.875rem;
+    }
+    #card.error {
+      display: flex;
+      align-items: center;
+      color: #e53e3e;
+      font-size: 0.875rem;
+    }
 
     .field {
       display: flex;
       flex-direction: column;
       gap: 4px;
-      margin-bottom: 20px;
+      margin-bottom: 16px;
     }
     .field:last-child { margin-bottom: 0; }
 
@@ -65,49 +64,46 @@
       letter-spacing: 0.2px;
       color: #999;
     }
-    .value {
-      font-size: 0.875rem;
-      color: #101828;
-    }
-    .value.sm  { font-size: 0.75rem; }
-    .value.big { font-size: 1.375rem; font-weight: 600; color: #2b6cb0; }
-    .value.pow { font-size: 0.875rem; color: #000; letter-spacing: 0.3955px; }
+    .value { font-size: 0.875rem; color: #101828; }
+    .value.parcel-id { font-size: 1rem; font-weight: 700; color: #101828; }
+    .value.rodzaj { font-size: 0.75rem; }
+    .value.muted { color: #9ca3af; }
 
-    .hint {
-      font-size: 0.8125rem;
-      color: #888;
-      text-align: center;
-    }
 
     .fields-row {
       display: flex;
-      gap: 20px;
-      margin-bottom: 20px;
+      gap: 16px;
+      margin-bottom: 16px;
     }
     .fields-row:last-child { margin-bottom: 0; }
     .fields-row .field { flex: 1; margin-bottom: 0; }
 
+    .card-divider { border: none; border-top: 1px solid #e5e7eb; margin: 0 0 16px; }
+
+    .hero-label { font-size: 0.875rem; font-weight: 600; color: #101828; margin-bottom: 5px; }
+    .hero-name { font-size: 1.375rem; font-weight: 700; color: #2b6cb0; margin-bottom: 4px; }
+    .hero-name.orange { color: #b7791f; }
+    .contextual-note { font-size: 0.8125rem; color: #101828; line-height: 1.5; margin-bottom: 6px; }
+
+    .numer-pow { margin-bottom: 10px; }
+    .numer-pow .label { display: inline; }
+    .numer-pow-value { font-size: 0.75rem; color: #4a5568; }
+
+    .units-grid { display: flex; flex-wrap: wrap; gap: 0 16px; }
+    .unit-entry { flex: 1; min-width: 45%; margin-bottom: 10px; }
+    .unit-entry .hero-name { font-size: 1rem; margin-bottom: 2px; }
+    .unit-entry .numer-pow { margin-bottom: 0; }
+    .unit-entry .numer-pow .label { display: block; }
+    .unit-entry .numer-pow-value { display: block; }
+
     .panel-footer {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      border-top: 1px solid rgba(153,153,153,0.5);
-      padding-top: 20px;
+      border-top: 1px solid rgba(153,153,153,0.3);
+      padding-top: 12px;
+      font-size: 0.75rem;
+      color: #6b7280;
     }
-    .footer-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 0.625rem;
-      gap: 16px;
-    }
-    .footer-row a { color: inherit; text-decoration: underline; }
-    .footer-meta {
-      font-size: 0.625rem;
-      color: #999;
-      text-align: right;
-      white-space: nowrap;
-    }
+    .footer-block { display: inline-block; margin-right: 16px; }
+    .footer-block a { color: inherit; text-decoration: underline; }
 
     .parcel-label {
       background: white;
@@ -121,20 +117,6 @@
     }
     .parcel-label::before { display: none; }
 
-    .tap-hint {
-      position: absolute;
-      bottom: 12px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(0,0,0,0.6);
-      color: white;
-      padding: 8px 16px;
-      border-radius: 20px;
-      font-size: 13px;
-      pointer-events: none;
-      white-space: nowrap;
-      z-index: 1000;
-    }
 
     @keyframes spin {
       to { transform: rotate(360deg); }
@@ -158,31 +140,146 @@
       box-shadow: 0 1px 5px rgba(0,0,0,0.35);
     }
 
+    @keyframes parcelFadeIn {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+    .parcel-entering {
+      animation: parcelFadeIn 0.45s ease forwards;
+    }
+    @keyframes circleFadeOut {
+      to { opacity: 0; }
+    }
+    .circle-fading {
+      animation: circleFadeOut 0.3s ease forwards;
+    }
+
+    #minimize-btn {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px;
+      color: #999;
+      display: flex;
+      align-items: center;
+      transition: color 0.2s;
+    }
+    #minimize-btn:hover { color: #555; }
+    #minimize-btn svg {
+      transition: transform 0.35s ease;
+    }
+    #minimize-btn.collapsed svg {
+      transform: rotate(180deg);
+    }
+
+    .collapsible-body {
+      display: grid;
+      grid-template-rows: 1fr;
+      transition: grid-template-rows 0.35s ease;
+      overflow: hidden;
+    }
+    .collapsible-body.collapsed {
+      grid-template-rows: 0fr;
+    }
+    .collapsible-inner {
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    #hero-zone {
+      padding: 0px 40px 0 0;
+      transition: padding 0.35s ease;
+    }
+    #card-wrap.collapsed #hero-zone {
+      padding: 0px 40px 0 0;    
+    }
+    #hero-zone .hero-label {
+      transition: font-size 0.35s ease, margin-bottom 0.35s ease;
+    }
+    #card-wrap.collapsed #hero-zone .hero-label {
+      font-size: calc(0.875rem * 0.75);
+      margin-bottom: calc(5px * 0.75);
+    }
+    #hero-zone .hero-name {
+      transition: font-size 0.35s ease, margin-bottom 0.35s ease;
+    }
+    #card-wrap.collapsed #hero-zone .hero-name {
+      font-size: calc(1.375rem * 0.75);
+      margin-bottom: calc(4px * 0.75);
+    }
+    #hero-zone .unit-entry .hero-name {
+      transition: font-size 0.35s ease, margin-bottom 0.35s ease;
+    }
+    #card-wrap.collapsed #hero-zone .unit-entry .hero-name {
+      font-size: calc(1rem * 0.75);
+    }
+    #hero-zone .contextual-note {
+      transition: font-size 0.35s ease;
+    }
+    #card-wrap.collapsed #hero-zone .contextual-note {
+      font-size: calc(0.8125rem * 0.75);
+    }
+
+    #layer-toggle {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 1000;
+      background: white;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: #374151;
+      cursor: pointer;
+      box-shadow: 0 1px 5px rgba(0,0,0,0.25);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.2s, color 0.2s;
+    }
+    #layer-toggle:hover { background: #f9fafb; }
+    #layer-toggle.satellite { background: #1a56a0; color: white; }
+
   </style>
 </head>
 <body>
 
 <div id="map-wrap">
   <div id="map"></div>
-  <div class="tap-hint" id="tap-hint">Dotknij mapę, aby sprawdzić działkę</div>
+  <button id="layer-toggle" title="Zmień podkład mapy">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+    Satelita
+  </button>
 </div>
 
 <div id="panel">
   <div id="card-wrap">
-    <span>
-<h1>Czyja to działka? <span style="color:#999">(wersja testowa)</span></h1><span style="font-size:0.625rem; color:#000">
-      Masz pomysł na ulepszenia? <a href="mailto:cyrylski@gmail.com">Napisz do mnie</a>.</span>
- </span>
-    <div id="card">
-      <span class="hint">Dotknij dowolnego miejsca na mapie</span>
+    <button id="minimize-btn" aria-label="Zwiń panel">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+    <div id="hero-zone">
+      <div class="hero-label">Czyja to dzia&#322;ka?</div>
+      <div class="contextual-note" style="color:#888">Dotknij dowolnego miejsca na mapie aby sprawdzi&#263; zarz&#261;dc&#281;</div>
     </div>
-    <div class="panel-footer">
-      <div class="footer-row" style="color:#4a5565">
-        <span>Wszystkie dane pochodzą z <a href="https://sipaplikacje.geopoz.poznan.pl/raporty/">GEOPOZu</a></span>
-        <div class="footer-meta" id="baza-info"></div>
-      </div>
-      <div class="footer-row" style="color:#000">
-        <span style="white-space:nowrap">Autor: <a href="https://www.linkedin.com/in/cyryl-kwasniewski/" target="_blank">Cyryl Kwaśniewski</a></span>
+    <div class="collapsible-body">
+      <div class="collapsible-inner">
+        <div id="card"></div>
+        <div class="panel-footer">
+          <span class="footer-block">Wszystkie dane pochodzą z <a href="https://sipaplikacje.geopoz.poznan.pl/raporty/">GEOPOZu</a></span>
+          <span class="footer-block" id="baza-info"></span>
+          <span class="footer-block" id="app-version"></span>
+          <div class="footer-block">Autor: <a href="mailto:cyrylski@gmail.com" target="_blank">Cyryl Kwaśniewski</a></div>
+        
+        </div>
       </div>
     </div>
   </div>
@@ -192,10 +289,18 @@
 <script>
   const map = L.map('map', { zoomControl: true, doubleClickZoom: true }).setView([52.4064, 16.9252], 13);
 
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap',
     maxZoom: 20
   }).addTo(map);
+
+  const satelliteLayer = L.tileLayer(
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    {
+      attribution: 'Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics',
+      maxZoom: 20
+    }
+  );
 
   // Warstwa struktury własności działek z GEOPOZ (WMS, półprzezroczysta)
   L.tileLayer.wms('https://wms2.geopoz.poznan.pl/geoserver/egib/ows', {
@@ -215,6 +320,25 @@
     opacity: 0.4,
     maxZoom: 20
   }).addTo(map);
+
+  // Przełącznik warstwy bazowej
+  let isSatellite = false;
+  document.getElementById('layer-toggle').addEventListener('click', function() {
+    isSatellite = !isSatellite;
+    if (isSatellite) {
+      map.removeLayer(osmLayer);
+      satelliteLayer.addTo(map);
+      satelliteLayer.bringToBack();
+      this.classList.add('satellite');
+      this.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg> Mapa';
+    } else {
+      map.removeLayer(satelliteLayer);
+      osmLayer.addTo(map);
+      osmLayer.bringToBack();
+      this.classList.remove('satellite');
+      this.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> Satelita';
+    }
+  });
 
   // Geolokalizacja przy starcie
   if (navigator.geolocation) {
@@ -244,7 +368,6 @@
   let parcelLayer = null;
   let selectionCircle = null;
   const card = document.getElementById('card');
-  const tapHint = document.getElementById('tap-hint');
 
   let requestToken = 0;
 
@@ -307,7 +430,6 @@
       fillOpacity: 0.15
     }).addTo(map);
 
-    tapHint.style.display = 'none';
     setCardContent('loading', '<div style="display:flex;align-items:center;gap:10px"><div class="spinner"></div><span>Pobieranie danych\u2026</span></div>');
 
     try {
@@ -315,7 +437,7 @@
       if (myToken !== requestToken) return;
       const d = await res.json();
 
-      if (selectionCircle) { selectionCircle.remove(); selectionCircle = null; }
+      if (selectionCircle) { fadeRemoveCircle(selectionCircle); selectionCircle = null; }
 
       if (d.error) {
         setCardContent('error', d.error);
@@ -324,7 +446,7 @@
 
       if (d.geometry) {
         parcelLayer = L.geoJSON({ type: 'Feature', geometry: d.geometry }, {
-          style: { color: '#2b6cb0', weight: 3, fillColor: '#4299e1', fillOpacity: 0.35 }
+          style: { color: '#2b6cb0', weight: 3, fillColor: '#4299e1', fillOpacity: 0.35, className: 'parcel-entering' }
         }).addTo(map);
         const center = parcelLayer.getBounds().getCenter();
         L.tooltip({ permanent: true, direction: 'center', className: 'parcel-label' })
@@ -338,44 +460,107 @@
         }).addTo(map);
       }
 
-      const zarzadca = d.pow_opis === 'brak informacji' && d.wlad === 'Wykonywanie zada\u0144 zarz\u0105dcy dr\u00f3g publicznych'
-        ? 'Prawdopodobnie Zarz\u0105d Dr\u00f3g Miejskich<br><span style="color:#555;font-size:12px">(brak informacji w danych GEOPOZu)</span>'
-        : d.pow_opis;
+      const bazaEl = document.getElementById('baza-info');
+      if (bazaEl && d.baza_data) bazaEl.textContent = 'Zaktualizowano: ' + d.baza_data;
 
-      if (d.baza_data) {
-        document.getElementById('baza-info').textContent = 'Ostatnia aktualizacja bazy: ' + d.baza_data;
-      }
-
-      const secondRow = d.pow_syg
-        ? '<div class="fields-row">' + field('Rodzaj zarz\u0105dzania', d.wlad, 'sm') + field('Sygnatura powierzenia', d.pow_syg, 'sm') + '</div>'
-        : field('Rodzaj zarz\u0105dzania', d.wlad, 'sm');
-
-      setCardContent('',
-        '<div style="width:100%">' +
-        '<div class="fields-row" style="align-items:center">' +
-        field('Numer dzia\u0142ki', d.ozn_dz, 'big') +
-        (d.pow_ewd ? field('Powierzchnia', d.pow_ewd + ' ha', 'pow') : '') +
-        '</div>' +
-        '<div class="fields-row">' +
-        field('W\u0142a\u015bciciel', d.wlasc) +
-        field('Zarz\u0105dca', zarzadca) +
-        '</div>' +
-        secondRow +
-        '</div>');
+      const rendered = renderScenario(d);
+      document.getElementById('hero-zone').innerHTML = rendered.hero;
+      setCardContent('', rendered.data);
 
     } catch(err) {
       if (myToken !== requestToken) return;
-      if (selectionCircle) { selectionCircle.remove(); selectionCircle = null; }
+      if (selectionCircle) { fadeRemoveCircle(selectionCircle); selectionCircle = null; }
       setCardContent('error', 'B\u0142\u0105d po\u0142\u0105czenia. Spr\u00f3buj ponownie.');
     }
   }
 
-  function field(label, value, size) {
+  fetch('/api/version').then(r => r.json()).then(d => {
+    const el = document.getElementById('app-version');
+    if (el) el.textContent = d.version;
+  });
+
+  const _panelBtn = document.getElementById('minimize-btn');
+  const _panelBody = document.querySelector('.collapsible-body');
+  const _cardWrap = document.getElementById('card-wrap');
+  function togglePanel() {
+    const isCollapsed = _panelBody.classList.toggle('collapsed');
+    _panelBtn.classList.toggle('collapsed', isCollapsed);
+    _cardWrap.classList.toggle('collapsed', isCollapsed);
+    _panelBtn.setAttribute('aria-label', isCollapsed ? 'Rozwiń panel' : 'Zwiń panel');
+  }
+  _panelBtn.addEventListener('click', togglePanel);
+
+  function fadeRemoveCircle(circle) {
+    const el = circle.getElement();
+    if (el) {
+      el.classList.add('circle-fading');
+      setTimeout(() => circle.remove(), 300);
+    } else {
+      circle.remove();
+    }
+  }
+
+  function field(label, value, cls) {
     if (!value || value === '\u2014' || value === 'null') return '';
     return '<div class="field">' +
       '<div class="label">' + label + '</div>' +
-      '<div class="value' + (size ? ' ' + size : '') + '">' + value + '</div>' +
+      '<div class="value' + (cls ? ' ' + cls : '') + '">' + value + '</div>' +
       '</div>';
+  }
+
+  function numPow(sygnatura) {
+    if (!sygnatura) return '';
+    return '<div class="numer-pow">' +
+      '<span class="label">Numer powierzenia:</span>' +
+      '<span class="numer-pow-value"> ' + sygnatura + '</span>' +
+      '</div>';
+  }
+
+  function renderScenario(s) {
+    let heroZone = '';
+
+    if (s.type === 'xlsx_multi') {
+      heroZone = '<div class="hero-label">' + s.manager_label + '</div>' +
+        '<div class="units-grid">' +
+        s.pow_entries.map(function(e) {
+          return '<div class="unit-entry">' +
+            '<div class="hero-name">' + (e.opis || 'brak informacji') + '</div>' +
+            numPow(e.sygnatura) +
+            '</div>';
+        }).join('') +
+        '</div>';
+    } else if (s.type === 'xlsx_single') {
+      const e = s.pow_entries[0];
+      heroZone = '<div class="hero-label">' + s.manager_label + '</div>' +
+        '<div class="hero-name">' + (e.opis || 'brak informacji') + '</div>' +
+        numPow(e.sygnatura);
+    } else {
+      heroZone = '<div class="hero-label">' + s.manager_label + '</div>';
+      if (s.manager_name) {
+        const orangeCls = s.type === 'private' ? ' orange' : '';
+        heroZone += '<div class="hero-name' + orangeCls + '">' + s.manager_name + '</div>';
+      }
+      if (s.contextual_note) {
+        const muted = s.type !== 'zdm_other' && s.type !== 'private' ? ' style="color:#888"' : '';
+        heroZone += '<div class="contextual-note"' + muted + '>' + s.contextual_note + '</div>';
+      }
+    }
+
+    const dataGrid = '<div class="fields-row">' +
+      field('Numer dzia\u0142ki', s.ozn_dz, 'parcel-id') +
+      (s.show_wlasc ? field('W\u0142a\u015bciciel', s.wlasc) : '') +
+      (s.pow_ewd && s.pow_ewd !== '\u2014' ? field('Powierzchnia', s.pow_ewd + '\u00a0ha') : '') +
+      '</div>';
+
+    return {
+      hero: heroZone,
+      data: '<div style="width:100%">' +
+        '<hr class="card-divider">' +
+        dataGrid +
+        '<hr class="card-divider">' +
+        field('Rodzaj powierzenia', s.wlad, 'rodzaj') +
+        '</div>'
+    };
   }
 </script>
 </body>

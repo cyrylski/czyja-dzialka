@@ -1,0 +1,385 @@
+from dataclasses import dataclass
+from enum import Enum
+
+from geopoz_client import ParcelAttributes, PowierzenieEntry, PowierzeniesMeta, TrwalyZarzadEntry, TrwalyZarzadMeta
+
+
+class ScenarioType(str, Enum):
+    XLSX_MULTI    = 'xlsx_multi'    # branch 1: pow_list.length > 1
+    XLSX_SINGLE   = 'xlsx_single'   # branch 2: pow_list.length == 1
+    SKARB_TZ      = 'skarb_tz'      # branch 3a: tz_entries found && isSkarb
+    CITY_TZ       = 'city_tz'       # branch 3b: tz_entries found && !isSkarb; also branch 13 inferred fallback
+    ZDM_CITY      = 'zdm_city'      # branch 4: isRoads && isCityOwned
+    ZDM_OTHER     = 'zdm_other'     # branch 5: isRoads && !isCityOwned
+    CHURCH        = 'church'        # branch 6: isChurch
+    SKARB_UW      = 'skarb_uw'      # branch 7: isSkarb && WLAD contains 'Użytkowanie wieczyste'
+    SKARB_ZASOB   = 'skarb_zasob'   # branch 8: isSkarb && WLAD contains 'Gospodarowanie zasobem'
+    SKARB_OTHER   = 'skarb_other'   # branch 9: isSkarb fallback (incl. WLAD 'Trwały zarząd' not in TZ CSV)
+    GMINNA_ENTITY = 'gminna_entity' # branch 10: isGminnaEntity
+    PRIVATE       = 'private'       # branch 11: !isCityOwned (non-city, non-state, non-church)
+    CITY_MIXED    = 'city_mixed'    # branch 12: isMixedOwnership && 'Gospodarowanie zasobem'
+    CITY_ZASOB    = 'city_zasob'    # branch 13: isCityOwned && 'Gospodarowanie zasobem'
+    CITY_UW       = 'city_uw'       # branch 14: isCityOwned && 'Użytkowanie wieczyste'
+    UNKNOWN       = 'unknown'       # branch 15: unrecognised combination
+
+
+@dataclass
+class ParcelScenario:
+    # scenario fields
+    type: ScenarioType
+    manager_label: str               # heading, e.g. "Tą działką zarządza"
+    manager_name: str | None         # e.g. "Zarząd Dróg Miejskich"; None when label says it all
+    contextual_note: str | None      # secondary explanation line; None if not needed
+    show_wlasc: bool                 # False for CHURCH, PRIVATE, CITY_MIXED
+    pow_entries: list[PowierzenieEntry]  # populated for XLSX_MULTI / XLSX_SINGLE; [] otherwise
+    tz_entries: list[TrwalyZarzadEntry]  # populated for SKARB_TZ / CITY_TZ when data available
+    confidence: str                  # "confirmed" (XLSX/TZ data) | "inferred" (WLASC/WLAD strings)
+    # pass-through data grid fields
+    ozn_dz: str
+    wlasc: str
+    wlad: str
+    pow_ewd: str
+    adres: str
+    geometry: dict | None
+    baza_data: str | None
+    baza_liczba: int
+
+
+# --- Private boolean helpers (mirror JS buildCard flags exactly) ---
+
+def _is_roads(wlad: str, klasouzytki: str) -> bool:
+    return 'dróg publicznych' in wlad or klasouzytki == 'dr'
+
+def _is_city_owned(wlasc: str) -> bool:
+    return 'Miasto Poznań' in wlasc
+
+def _is_skarb(wlasc: str) -> bool:
+    return 'Skarb Państwa' in wlasc
+
+def _is_church(wlasc: str) -> bool:
+    w = wlasc.lower()
+    return 'kościoły' in w or 'związki wyznaniowe' in w
+
+def _is_mixed_ownership(wlasc: str) -> bool:
+    return _is_city_owned(wlasc) and 'osoba fizyczna' in wlasc
+
+def _is_gminna_entity(wlasc: str) -> bool:
+    return not _is_city_owned(wlasc) and not _is_skarb(wlasc) and 'gminna' in wlasc.lower()
+
+def _is_wspolnota(wlasc: str) -> bool:
+    return wlasc.startswith('wspólnota:')
+
+def _is_prawo_zwiazane(wlasc: str) -> bool:
+    return 'prawo związane:' in wlasc
+
+def _is_spolka_zagraniczna(wlasc: str) -> bool:
+    return 'spółka handlowa będąca cudzoziemcem' in wlasc
+
+def _is_spolka_krajowa(wlasc: str) -> bool:
+    return 'spółka handlowa niebędąca cudzoziemcem' in wlasc
+
+def _is_powiat(wlasc: str) -> bool:
+    return 'powiat' in wlasc.lower()
+
+def _is_stowarzyszenie(wlasc: str) -> bool:
+    return 'stowarzyszenie' in wlasc.lower()
+
+def _is_osoba_fizyczna(wlasc: str) -> bool:
+    return 'osoba fizyczna' in wlasc and not _is_prawo_zwiazane(wlasc) and not _is_wspolnota(wlasc)
+
+
+def analyze_parcel(
+    attrs: ParcelAttributes,
+    pow_entries: list[PowierzenieEntry],
+    baza_meta: PowierzeniesMeta,
+    tz_entries: list[TrwalyZarzadEntry] | None = None,
+    tz_meta: TrwalyZarzadMeta | None = None,
+) -> ParcelScenario:
+    """
+    Pure function. No IO. Evaluates the 14-branch decision tree and returns a ParcelScenario.
+    Branch order matches buildCard()'s if/else order exactly, preserving existing priority rules.
+    """
+    tz_entries = tz_entries or []
+
+    wlasc = attrs.wlasc
+    wlad  = attrs.wlad
+    klas  = attrs.klasouzytki
+
+    is_multi  = len(pow_entries) > 1
+    has_pow   = len(pow_entries) >= 1
+    is_roads  = _is_roads(wlad, klas)
+    is_city   = _is_city_owned(wlasc)
+    is_skarb  = _is_skarb(wlasc)
+    is_church = _is_church(wlasc)
+    is_mixed  = _is_mixed_ownership(wlasc)
+    is_gminna = _is_gminna_entity(wlasc)
+
+    def _base(type_, label, name, note, show_wlasc, entries, confidence, tz=None):
+        return ParcelScenario(
+            type=type_,
+            manager_label=label,
+            manager_name=name,
+            contextual_note=note,
+            show_wlasc=show_wlasc,
+            pow_entries=entries,
+            tz_entries=tz or [],
+            confidence=confidence,
+            ozn_dz=attrs.ozn_dz or '\u2014',
+            wlasc=wlasc or '\u2014',
+            wlad=wlad or '\u2014',
+            pow_ewd=attrs.pow_ewd or '\u2014',
+            adres=attrs.adres or '\u2014',
+            geometry=attrs.geometry,
+            baza_data=baza_meta.source_date,
+            baza_liczba=baza_meta.total_records,
+        )
+
+    # 1 — XLSX: multiple managers
+    if is_multi:
+        return _base(
+            ScenarioType.XLSX_MULTI,
+            'Tą działką zarządza kilka jednostek:',
+            None, None, True, pow_entries, 'confirmed',
+        )
+
+    # 2 — XLSX: single manager
+    if has_pow:
+        return _base(
+            ScenarioType.XLSX_SINGLE,
+            'Tą działką zarządza',
+            pow_entries[0].opis or 'brak informacji',
+            None, True, pow_entries, 'confirmed',
+        )
+
+    # 3 — TZ CSV: parcel found in trwały zarząd registry — confirmed regardless of WLAD
+    if tz_entries:
+        type_ = ScenarioType.SKARB_TZ if is_skarb else ScenarioType.CITY_TZ
+        return _base(
+            type_,
+            'Tą działką zarządza',
+            tz_entries[0].jednostka or 'jednostka w trwałym zarządzie',
+            'Działka oddana w trwały zarząd (rejestr WGN).',
+            True, [], 'confirmed', tz=tz_entries,
+        )
+
+    # 4 — Road parcel, city-owned → ZDM (Art. 19 ust. 5 UoDP)
+    if is_roads and is_city:
+        return _base(
+            ScenarioType.ZDM_CITY,
+            'Tą działką zarządza',
+            'Zarząd Dróg Miejskich',
+            'Jednostka odpowiada za utrzymanie pasa drogowego.',
+            True, [], 'inferred',
+        )
+
+    # 4 — Road parcel, non-city owner → ZDM (zarządca follows road category, not ownership)
+    if is_roads and not is_city:
+        return _base(
+            ScenarioType.ZDM_OTHER,
+            'Tą działką zarządza',
+            'Zarząd Dróg Miejskich',
+            'Działka ma innego właściciela, ale ZDM odpowiada za utrzymanie pasa drogowego.',
+            True, [], 'inferred',
+        )
+
+    # 5 — Religious entity: owner IS the manager (Ustawa o gwarancjach wolności sumienia)
+    if is_church:
+        return _base(
+            ScenarioType.CHURCH,
+            'Właścicielem i zarządcą działki jest',
+            wlasc or 'instytucja kościelna',
+            'Kościoły i związki wyznaniowe zarządzają własnością samodzielnie.',
+            False, [], 'inferred',
+        )
+
+    # 6 — SP + użytkowanie wieczyste (Art. 232 KC — UW holder acts independently)
+    if is_skarb and 'Użytkowanie wieczyste' in wlad:
+        return _base(
+            ScenarioType.SKARB_UW,
+            'Działka Skarbu Państwa w użytkowaniu wieczystym',
+            None,
+            'Grunt powierzony miastu lub podmiotowi prywatnemu. Szczegóły: <a href="https://bip.poznan.pl/bip/wydzial-gospodarki-nieruchomosciami,24/">Wydział Gospodarki Nieruchomościami</a>.',
+            True, [], 'inferred',
+        )
+
+    # 7 — SP + Gospodarowanie zasobem (Art. 11+23 UGN + Art. 92 u.s.p.)
+    if is_skarb and 'Gospodarowanie zasobem' in wlad:
+        return _base(
+            ScenarioType.SKARB_ZASOB,
+            'Działką zarządza urząd lub jednostka Skarbu Państwa',
+            None,
+            'Brak szczegółowych danych. W razie pytań zwróć się do <a href="https://bip.poznan.pl/bip/wydzial-gospodarki-nieruchomosciami,24/">Wydziału Gospodarki Nieruchomościami</a>.',
+            True, [], 'inferred',
+        )
+
+    # 7b — SP + Trwały zarząd but parcel not in TZ CSV (data gap in registry)
+    if is_skarb and 'Trwały zarząd' in wlad:
+        return _base(
+            ScenarioType.SKARB_OTHER,
+            'Działka w trwałym zarządzie jednostki państwowej lub miejskiej',
+            None,
+            'W razie pytań zwróć się do <a href="https://bip.poznan.pl/bip/wydzial-gospodarki-nieruchomosciami,24/">Wydziału Gospodarki Nieruchomościami</a>.',
+            True, [], 'inferred',
+        )
+
+    # 8 — SP fallback: catches SP + any WLAD not matched above, or SP with no WLAD
+    if is_skarb:
+        return _base(
+            ScenarioType.SKARB_OTHER,
+            'Działka należy do Skarbu Państwa',
+            None,
+            'Brak danych o zarządcy. W razie pytań zwróć się do <a href="https://bip.poznan.pl/bip/wydzial-gospodarki-nieruchomosciami,24/">Wydziału Gospodarki Nieruchomościami</a>.',
+            True, [], 'inferred',
+        )
+
+    # 9a — Gminna legal entity: city-owned company not matching 'Miasto Poznań' literally
+    if is_gminna:
+        return _base(
+            ScenarioType.GMINNA_ENTITY,
+            'Działka należy do miejskiej spółki lub jednostki gminnej',
+            None,
+            'Właścicielem jest podmiot powiązany z Miastem Poznań. W sprawach dotyczących tej działki zwróć się do <a href="https://bip.poznan.pl/bip/wydzial-gospodarki-nieruchomosciami,24/">Wydziału Gospodarki Nieruchomościami</a>.',
+            True, [], 'inferred',
+        )
+
+    # 9 — Private owner (non-city, non-state, non-church, non-gminna)
+    # Sub-branches evaluated top-to-bottom; first match wins.
+    if not is_city:
+        # 9-B: wspólnota mieszkaniowa
+        if _is_wspolnota(wlasc):
+            return _base(
+                ScenarioType.PRIVATE,
+                'Działka stanowi grunt pod budynkiem wielolokalowym',
+                None,
+                'Gruntem zarządza wspólnota mieszkaniowa budynku. W sprawach dotyczących terenu zwróć się do zarządu wspólnoty (dane na tablicy informacyjnej w klatce schodowej) lub do zarządcy nieruchomości.',
+                True, [], 'inferred',
+            )
+
+        # 9-C: prawo związane z lokalem
+        if _is_prawo_zwiazane(wlasc):
+            return _base(
+                ScenarioType.PRIVATE,
+                'Działka stanowi grunt pod budynkiem \u2014 własność powiązana z lokalami',
+                None,
+                'Każdy właściciel lokalu w tym budynku posiada ułamkowy udział własności tego gruntu, nierozerwalnie związany z prawem do swojego mieszkania (art.\u00a03 ustawy o własności lokali). Sprawami gruntowymi zajmuje się wspólnota mieszkaniowa budynku \u2014 zwróć się do jej zarządu lub zarządcy nieruchomości.',
+                True, [], 'inferred',
+            )
+
+        # 9-Z early exit: comma = multiple co-owners, use fallback note
+        # (wspólnota: and prawo związane: already handled above; anything else with a comma is mixed)
+        if ',' in wlasc:
+            return _base(
+                ScenarioType.PRIVATE,
+                'Ta działka jest własnością prywatną',
+                None,
+                'Działka należy do kilku współwłaścicieli (osoby prywatne lub podmioty gospodarcze). Dane właścicieli nie są dostępne w publicznych rejestrach online.',
+                True, [], 'inferred',
+            )
+
+        # 9-E: zagraniczny podmiot (sprawdzany przed krajowym — bardziej szczegółowy)
+        if _is_spolka_zagraniczna(wlasc):
+            return _base(
+                ScenarioType.PRIVATE,
+                'Ta działka należy do zagranicznego podmiotu prawnego',
+                None,
+                'Właścicielem jest podmiot zarejestrowany za granicą (nabycie nieruchomości przez cudzoziemca wymaga zezwolenia MSWiA). Danych właściciela nie można ustalić za pomocą publicznych rejestrów online \u2014 nazwa podmiotu nie jest ujawniana w EGIB.',
+                True, [], 'inferred',
+            )
+
+        # 9-D: polska spółka handlowa
+        if _is_spolka_krajowa(wlasc):
+            return _base(
+                ScenarioType.PRIVATE,
+                'Ta działka należy do polskiej spółki handlowej',
+                None,
+                'Właścicielem jest polska spółka handlowa. Danych właściciela nie można ustalić za pomocą publicznych rejestrów online \u2014 nazwa spółki nie jest ujawniana w EGIB.',
+                True, [], 'inferred',
+            )
+
+        # 9-F: powiat
+        if _is_powiat(wlasc):
+            return _base(
+                ScenarioType.PRIVATE,
+                'Ta działka należy do powiatu',
+                None,
+                'Właścicielem jest Powiat Poznański. W sprawach dotyczących tej nieruchomości zwróć się do Starostwa Powiatowego w Poznaniu, Wydział Geodezji i Gospodarki Nieruchomościami: <a href="https://powiat.poznan.pl/kontakt">powiat.poznan.pl/kontakt</a>.',
+                True, [], 'inferred',
+            )
+
+        # 9-G: stowarzyszenie
+        if _is_stowarzyszenie(wlasc):
+            return _base(
+                ScenarioType.PRIVATE,
+                'Ta działka należy do stowarzyszenia lub organizacji',
+                None,
+                'Właścicielem jest zarejestrowane stowarzyszenie, które zarządza nieruchomością przez swój zarząd. Dane organizacji (adres, skład zarządu) możesz znaleźć bezpłatnie w Krajowym Rejestrze Sądowym: <a href="https://ekrs.ms.gov.pl">ekrs.ms.gov.pl</a>.',
+                True, [], 'inferred',
+            )
+
+        # 9-A: osoba fizyczna
+        if _is_osoba_fizyczna(wlasc):
+            return _base(
+                ScenarioType.PRIVATE,
+                'Ta działka jest własnością prywatną',
+                None,
+                'Właścicielem jest osoba fizyczna. Dane właściciela nie są dostępne w publicznych rejestrach online.',
+                True, [], 'inferred',
+            )
+
+        # 9-Z: fallback (współwłasność mieszana lub nierozpoznany typ)
+        return _base(
+            ScenarioType.PRIVATE,
+            'Ta działka jest własnością prywatną',
+            None,
+            'Działka należy do kilku współwłaścicieli (osoby prywatne lub podmioty gospodarcze). Dane właścicieli nie są dostępne w publicznych rejestrach online.',
+            True, [], 'inferred',
+        )
+
+    # 10 — City + private co-ownership + Gospodarowanie zasobem (typically wspólnota plot)
+    if is_mixed and 'Gospodarowanie zasobem' in wlad:
+        return _base(
+            ScenarioType.CITY_MIXED,
+            'Działka ze współwłasnością Miasta i osób prywatnych',
+            None,
+            'To prawdopodobnie grunt pod budynkiem wielolokalowym (wspólnota mieszkaniowa)',
+            False, [], 'inferred',
+        )
+
+    # 11 — City parcel + Gospodarowanie zasobem: general city asset pool, WGN manages
+    if 'Gospodarowanie zasobem' in wlad:
+        return _base(
+            ScenarioType.CITY_ZASOB,
+            'Tą działką zarządza',
+            'Wydział Gospodarki Nieruchomościami',
+            None, True, [], 'inferred',
+        )
+
+    # 12 — City parcel + użytkowanie wieczyste (Art. 232 KC — UW holder quasi-owns)
+    if 'Użytkowanie wieczyste' in wlad:
+        return _base(
+            ScenarioType.CITY_UW,
+            'Działka w użytkowaniu wieczystym',
+            None,
+            'Grunt miejski oddany w użytkowanie wieczyste \u2014 najprawdopodobniej wspólnocie mieszkaniowej, spółdzielni, firmie lub osobie prywatnej.',
+            True, [], 'inferred',
+        )
+
+    # 13 — City parcel + Trwały zarząd but parcel not in TZ CSV (data gap in registry)
+    if is_city and 'Trwały zarząd' in wlad:
+        return _base(
+            ScenarioType.CITY_TZ,
+            'Działka w trwałym zarządzie jednostki miejskiej',
+            None,
+            'W razie pytań zwróć się do <a href="https://bip.poznan.pl/bip/wydzial-gospodarki-nieruchomosciami,24/">Wydziału Gospodarki Nieruchomościami</a>.',
+            True, [], 'inferred',
+        )
+
+    # 14 — Default: unrecognised WLASC/WLAD combination
+    import logging
+    logging.warning('[UNKNOWN] ozn_dz=%s wlasc=%r wlad=%r klas=%r', attrs.ozn_dz, wlasc, wlad, klas)
+    return _base(
+        ScenarioType.UNKNOWN,
+        'Tą działką zarządza',
+        'brak informacji',
+        None, True, [], 'inferred',
+    )

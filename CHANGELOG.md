@@ -1,0 +1,42 @@
+# Changelog
+
+## v1.1.2 — 2026-04-26
+
+### Added
+- Base map layer toggle: switch between OSM contour map and Esri satellite imagery
+
+---
+
+## v1.1.1 — 2026-04-26
+
+### Fixed
+- Removed misleading references to ekw.ms.gov.pl and ekrs.ms.gov.pl from all private ownership scenarios — neither can be searched by parcel number; company names are not exposed in EGIB (confirmed via UODO/GDPR ruling); KW numbers are not publicly searchable by parcel identifier
+- Updated contextual notes for osoba fizyczna, spółka krajowa, spółka zagraniczna, and co-owner branches to honestly state data is not available in public registries
+
+---
+
+## v1.1.0 — 2026-04-26
+
+### Added
+- Expanded private ownership scenarios: 8 sub-branches covering wspólnoty mieszkaniowe, prawo związane z lokalem, współwłasność, spółki zagraniczne, spółki krajowe, powiaty, stowarzyszenia, osoby fizyczne
+- Polish contextual notes with legal basis and actionable links for each private scenario
+- Fly.io deployment with GitHub Actions auto-deploy on push to main
+- App version displayed in panel footer
+
+### Changed
+- Refactored ownership logic into dedicated `parcel_analyzer.py`
+- Refactored GEOPOZ API calls into dedicated `geopoz_client.py`
+- Updated copy strings across all scenarios (removed parentheses, added BIP links)
+
+---
+
+## v1.0.0 — 2026-04-20
+
+### Added
+- Interactive map of Poznań parcels (Leaflet + GEOPOZ WMS)
+- Tap-to-lookup: identifies parcel owner/manager from EGIB register
+- City entity branches: ZDM, ZZM, ZUK, ZGiKM Geopoz, Zarząd Dróg, schools, churches, county, district administration
+- XLSX powierzenia lookup for city-managed parcels
+- Panel with hero zone, data grid, collapsible UI
+- Analytics logging with email notifications
+- Geolocation on app start

@@ -11,7 +11,7 @@ from flask import Flask, jsonify, request, send_from_directory
 import geopoz_client
 import parcel_analyzer
 
-APP_VERSION = 'v1.1.2'
+APP_VERSION = 'v1.1.3'
 
 app = Flask(__name__, static_folder='.')
 
@@ -97,7 +97,9 @@ def dzialka():
 
     pow_entries = geopoz_client.get_powierzenia(attrs.ozn_dz)
     meta        = geopoz_client.get_powierzenia_meta()
-    scenario    = parcel_analyzer.analyze_parcel(attrs, pow_entries, meta)
+    tz_entries  = geopoz_client.get_trwaly_zarzad(attrs.ozn_dz)
+    tz_meta     = geopoz_client.get_trwaly_zarzad_meta()
+    scenario    = parcel_analyzer.analyze_parcel(attrs, pow_entries, meta, tz_entries, tz_meta)
 
     _log_dzialka(scenario.ozn_dz)
 

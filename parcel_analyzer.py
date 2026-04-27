@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from enum import Enum
 
-from geopoz_client import ParcelAttributes, PowierzenieEntry, PowierzeniesMeta
+from geopoz_client import ParcelAttributes, PowierzenieEntry, PowierzeniesMeta, TrwalyZarzadEntry, TrwalyZarzadMeta
 
 
 class ScenarioType(str, Enum):
@@ -32,7 +32,8 @@ class ParcelScenario:
     contextual_note: str | None      # secondary explanation line; None if not needed
     show_wlasc: bool                 # False for CHURCH, PRIVATE, CITY_MIXED
     pow_entries: list[PowierzenieEntry]  # populated for XLSX_MULTI / XLSX_SINGLE; [] otherwise
-    confidence: str                  # "confirmed" (XLSX) | "inferred" (WLASC/WLAD strings)
+    tz_entries: list[TrwalyZarzadEntry]  # populated for SKARB_TZ / CITY_TZ when data available
+    confidence: str                  # "confirmed" (XLSX/TZ data) | "inferred" (WLASC/WLAD strings)
     # pass-through data grid fields
     ozn_dz: str
     wlasc: str
@@ -91,11 +92,15 @@ def analyze_parcel(
     attrs: ParcelAttributes,
     pow_entries: list[PowierzenieEntry],
     baza_meta: PowierzeniesMeta,
+    tz_entries: list[TrwalyZarzadEntry] | None = None,
+    tz_meta: TrwalyZarzadMeta | None = None,
 ) -> ParcelScenario:
     """
     Pure function. No IO. Evaluates the 14-branch decision tree and returns a ParcelScenario.
     Branch order matches buildCard()'s if/else order exactly, preserving existing priority rules.
     """
+    tz_entries = tz_entries or []
+
     wlasc = attrs.wlasc
     wlad  = attrs.wlad
     klas  = attrs.klasouzytki
@@ -109,7 +114,7 @@ def analyze_parcel(
     is_mixed  = _is_mixed_ownership(wlasc)
     is_gminna = _is_gminna_entity(wlasc)
 
-    def _base(type_, label, name, note, show_wlasc, entries, confidence):
+    def _base(type_, label, name, note, show_wlasc, entries, confidence, tz=None):
         return ParcelScenario(
             type=type_,
             manager_label=label,
@@ -117,6 +122,7 @@ def analyze_parcel(
             contextual_note=note,
             show_wlasc=show_wlasc,
             pow_entries=entries,
+            tz_entries=tz or [],
             confidence=confidence,
             ozn_dz=attrs.ozn_dz or '\u2014',
             wlasc=wlasc or '\u2014',
@@ -197,6 +203,14 @@ def analyze_parcel(
 
     # 7b — SP + Trwały zarząd (may be state or city unit, e.g. school)
     if is_skarb and 'Trwały zarząd' in wlad:
+        if tz_entries:
+            return _base(
+                ScenarioType.SKARB_TZ,
+                'Tą działką zarządza',
+                tz_entries[0].jednostka or 'jednostka państwowa lub miejska',
+                'Działka Skarbu Państwa oddana w trwały zarząd.',
+                True, [], 'confirmed', tz=tz_entries,
+            )
         return _base(
             ScenarioType.SKARB_TZ,
             'Działka w trwałym zarządzie jednostki państwowej lub miejskiej',
@@ -349,6 +363,14 @@ def analyze_parcel(
 
     # 13 — City parcel + Trwały zarząd (Art. 43 UGN — TZ held by public units only)
     if is_city and 'Trwały zarząd' in wlad:
+        if tz_entries:
+            return _base(
+                ScenarioType.CITY_TZ,
+                'Tą działką zarządza',
+                tz_entries[0].jednostka or 'jednostka miejska',
+                'Działka Miasta Poznań oddana w trwały zarząd.',
+                True, [], 'confirmed', tz=tz_entries,
+            )
         return _base(
             ScenarioType.CITY_TZ,
             'Działka w trwałym zarządzie jednostki miejskiej',

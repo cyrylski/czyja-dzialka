@@ -83,6 +83,17 @@
 - `ROADMAP.md` created with Changelog and Planned features sections.
 - `.gitignore` updated: added `analytics.log` and sensitive planning docs (`PRODUCTION_PLAN.md`, `POZNAN-API-RESEARCH.md`, `ZARZADCA-LOGIC.md`).
 
+### 2026-04-27
+
+**Data sources: trwały zarząd + reorganization**
+
+- Added second static data source: `data/trwaly-zarzad-YYYY-MM-DD.csv` (report `reportId=2000092` from sipaplikacje.geopoz.poznan.pl) — 2616 parcels in permanent management (trwały zarząd), keyed by `Pełny numer działki`.
+- Moved `powierzenia-*.xlsx` from project root into new `data/` subdirectory alongside the new CSV.
+- Added `data/sources.md` — one-stop reference describing each file, required columns, report URL, and update instructions.
+- Updated `geopoz_client.py`: `_load_trwaly_zarzad()` reads the CSV at startup into an in-memory dict; `get_trwaly_zarzad(ozn_dz)` and `get_trwaly_zarzad_meta()` added.
+- Enriched `SKARB_TZ` and `CITY_TZ` scenario branches: when TZ data is available for the clicked parcel, the specific managing unit name is now shown with `confidence='confirmed'` instead of the generic "W razie pytań zwróć się do WGN" note.
+- Bumped version to v1.1.3.
+
 ---
 
 ## Planned features / Ideas
@@ -110,6 +121,22 @@ The Poznań city portal `object_parcel` endpoint returns empty features for all 
 **Trigger case:** Parcel `03/06/1/7` — confirmed ZZM park, not in powierzenia XLSX. GUGIK ID: `306401_1.0306.1/7`.
 
 **Estimated complexity:** medium-high. Requires GUGIK integration + polygon math (Turf.js or backend shapely).
+
+---
+
+### Auto-refresh data sources on a schedule
+
+Both static data sources (`powierzenia` and `trwaly-zarzad`) are public reports available without authentication at `sipaplikacje.geopoz.poznan.pl/raporty/`. A `refresh_data.py` script could download the latest exports automatically and save them to `data/` with today's date, letting the app pick them up on the next restart.
+
+**Approach:**
+1. Use `requests` to GET each report URL with `?format=csv` / `?format=xlsx` query params (verify exact export params against the portal).
+2. Save to `data/powierzenia-YYYY-MM-DD.xlsx` and `data/trwaly-zarzad-YYYY-MM-DD.csv`, deleting the previous file.
+3. Optionally reload the in-memory dicts at runtime without a full server restart (hot-reload via a `/_reload` internal endpoint or a SIGUSR1 handler).
+4. Run the script on a weekly cron (e.g. Render cron job, GitHub Actions scheduled workflow, or a simple `crontab` entry on a VPS).
+
+**Status:** Not started. `data/sources.md` documents the report URLs so this can be wired up when needed.
+
+**Estimated complexity:** low (script itself) to medium (hot-reload without restart).
 
 ---
 

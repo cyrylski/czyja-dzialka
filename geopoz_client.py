@@ -87,6 +87,12 @@ def _coords_to_epsg2177(lon: float, lat: float) -> tuple[float, float]:
     return FE + x, FN + y
 
 
+def _normalize_ozn_dz(ozn: str) -> str:
+    """Strip leading zeros from each /‑separated segment so GEOPOZ format (03/06/1/7)
+    and CSV format (3/06/1/7) resolve to the same key (3/6/1/7)."""
+    return '/'.join(str(int(s)) if s.isdigit() else s for s in ozn.split('/'))
+
+
 def _data_dir() -> str:
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
 
@@ -136,6 +142,7 @@ def _load_powierzenia() -> tuple[dict, PowierzeniesMeta]:
             ozn = str(row[idx_ozn]).strip() if row[idx_ozn] else None
             if not ozn or ozn == 'None':
                 continue
+            ozn = _normalize_ozn_dz(ozn)
             entry = PowierzenieEntry(
                 opis=str(row[idx_opis]).strip() if row[idx_opis] else '',
                 sygnatura=str(row[idx_syg]).strip() if row[idx_syg] else '',
@@ -164,6 +171,7 @@ def _load_trwaly_zarzad() -> tuple[dict, TrwalyZarzadMeta]:
                 ozn = (row.get('Pełny numer działki') or '').strip()
                 if not ozn:
                     continue
+                ozn = _normalize_ozn_dz(ozn)
                 entry = TrwalyZarzadEntry(
                     jednostka=(row.get('Jednostka') or '').strip(),
                     data_ustanowienia=(row.get('Data ustanowienia') or '').strip(),
@@ -301,7 +309,7 @@ def get_parcel_info(lat: float, lon: float) -> tuple[ParcelAttributes | None, st
 
 def get_powierzenia(ozn_dz: str) -> list[PowierzenieEntry]:
     """Looks up ozn_dz in the in-memory POWIERZENIA dict loaded at startup."""
-    return _POWIERZENIA.get(ozn_dz, [])
+    return _POWIERZENIA.get(_normalize_ozn_dz(ozn_dz), [])
 
 
 def get_powierzenia_meta() -> PowierzeniesMeta:
@@ -311,7 +319,7 @@ def get_powierzenia_meta() -> PowierzeniesMeta:
 
 def get_trwaly_zarzad(ozn_dz: str) -> list[TrwalyZarzadEntry]:
     """Looks up ozn_dz in the in-memory TRWALY_ZARZAD dict loaded at startup."""
-    return _TRWALY_ZARZAD.get(ozn_dz, [])
+    return _TRWALY_ZARZAD.get(_normalize_ozn_dz(ozn_dz), [])
 
 
 def get_trwaly_zarzad_meta() -> TrwalyZarzadMeta:

@@ -1,3 +1,4 @@
+import csv
 import glob
 import math
 import os
@@ -33,6 +34,18 @@ class PowierzenieEntry:
 class PowierzeniesMeta:
     source_date: str | None  # extracted from filename powierzenia-YYYY-MM-DD.xlsx
     total_records: int       # total unique OZN_DZ entries loaded
+
+
+@dataclass
+class TrwalyZarzadEntry:
+    jednostka: str           # managing unit name from Jednostka column
+    data_ustanowienia: str   # establishment date (may be empty)
+
+
+@dataclass
+class TrwalyZarzadMeta:
+    source_date: str | None  # extracted from filename trwaly-zarzad-YYYY-MM-DD.csv
+    total_records: int       # total unique parcel entries loaded
 
 
 def _coords_to_epsg2177(lon: float, lat: float) -> tuple[float, float]:
@@ -74,14 +87,27 @@ def _coords_to_epsg2177(lon: float, lat: float) -> tuple[float, float]:
     return FE + x, FN + y
 
 
+def _data_dir() -> str:
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
+
+
 def _find_powierzenia_file() -> tuple[str | None, str | None]:
-    base = os.path.dirname(os.path.abspath(__file__))
-    files = glob.glob(os.path.join(base, 'powierzenia-*.xlsx'))
+    files = glob.glob(os.path.join(_data_dir(), 'powierzenia-*.xlsx'))
     if not files:
         return None, None
     files.sort(reverse=True)
     filepath = files[0]
     m = re.search(r'powierzenia-(\d{4}-\d{2}-\d{2})\.xlsx', os.path.basename(filepath))
+    return filepath, m.group(1) if m else None
+
+
+def _find_trwaly_zarzad_file() -> tuple[str | None, str | None]:
+    files = glob.glob(os.path.join(_data_dir(), 'trwaly-zarzad-*.csv'))
+    if not files:
+        return None, None
+    files.sort(reverse=True)
+    filepath = files[0]
+    m = re.search(r'trwaly-zarzad-(\d{4}-\d{2}-\d{2})\.csv', os.path.basename(filepath))
     return filepath, m.group(1) if m else None
 
 
@@ -123,6 +149,34 @@ def _load_powierzenia() -> tuple[dict, PowierzeniesMeta]:
 
 
 _POWIERZENIA, _POWIERZENIA_META = _load_powierzenia()
+
+
+def _load_trwaly_zarzad() -> tuple[dict, TrwalyZarzadMeta]:
+    filepath, date_str = _find_trwaly_zarzad_file()
+    if not filepath:
+        print('[TRWALY_ZARZAD] Brak pliku trwaly-zarzad-*.csv')
+        return {}, TrwalyZarzadMeta(source_date=None, total_records=0)
+    try:
+        data: dict = {}
+        with open(filepath, encoding='utf-8-sig', newline='') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                ozn = (row.get('Pełny numer działki') or '').strip()
+                if not ozn:
+                    continue
+                entry = TrwalyZarzadEntry(
+                    jednostka=(row.get('Jednostka') or '').strip(),
+                    data_ustanowienia=(row.get('Data ustanowienia') or '').strip(),
+                )
+                data.setdefault(ozn, []).append(entry)
+        print(f'[TRWALY_ZARZAD] Wczytano {len(data)} rekordów z {os.path.basename(filepath)}')
+        return data, TrwalyZarzadMeta(source_date=date_str, total_records=len(data))
+    except Exception as e:
+        print(f'[TRWALY_ZARZAD] Blad wczytywania: {e}')
+        return {}, TrwalyZarzadMeta(source_date=date_str, total_records=0)
+
+
+_TRWALY_ZARZAD, _TRWALY_ZARZAD_META = _load_trwaly_zarzad()
 
 
 def _fetch_klasouzytki(easting: float, northing: float) -> str:
@@ -253,3 +307,13 @@ def get_powierzenia(ozn_dz: str) -> list[PowierzenieEntry]:
 def get_powierzenia_meta() -> PowierzeniesMeta:
     """Returns date and record count for footer display in the UI."""
     return _POWIERZENIA_META
+
+
+def get_trwaly_zarzad(ozn_dz: str) -> list[TrwalyZarzadEntry]:
+    """Looks up ozn_dz in the in-memory TRWALY_ZARZAD dict loaded at startup."""
+    return _TRWALY_ZARZAD.get(ozn_dz, [])
+
+
+def get_trwaly_zarzad_meta() -> TrwalyZarzadMeta:
+    """Returns date and record count for the trwały zarząd data source."""
+    return _TRWALY_ZARZAD_META

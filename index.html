@@ -102,8 +102,9 @@
       font-size: 0.75rem;
       color: #6b7280;
     }
-    .footer-block { display: inline-block; margin-right: 16px; }
-    .footer-block a { color: inherit; text-decoration: underline; }
+    .footer-row { display: block; margin-bottom: 2px; }
+    .footer-row a { color: inherit; text-decoration: underline; }
+    .footer-sep { margin: 0 4px; }
 
     .parcel-label {
       background: white;
@@ -274,11 +275,12 @@
       <div class="collapsible-inner">
         <div id="card"></div>
         <div class="panel-footer">
-          <span class="footer-block">Wszystkie dane pochodzą z <a href="https://sipaplikacje.geopoz.poznan.pl/raporty/">GEOPOZu</a></span>
-          <span class="footer-block" id="baza-info"></span>
-          <span class="footer-block" id="app-version"></span>
-          <div class="footer-block">Autor: <a href="mailto:cyrylski@gmail.com" target="_blank">Cyryl Kwaśniewski</a></div>
-        
+          <div class="footer-row">
+            <span id="app-version"></span><span id="baza-info"></span><span class="footer-sep">&middot;</span>Wszystkie dane pochodzą z <a href="https://sipaplikacje.geopoz.poznan.pl/raporty/">GEOPOZu</a>
+          </div>
+          <div class="footer-row">
+            Widzisz błąd? Masz pomysł? Napisz do mnie: <a href="mailto:cyryl.kwasniewski@gmail.com">cyryl.kwasniewski@gmail.com</a>
+          </div>
         </div>
       </div>
     </div>
@@ -461,7 +463,6 @@
       }
 
       const bazaEl = document.getElementById('baza-info');
-      if (bazaEl && d.baza_data) bazaEl.textContent = 'Zaktualizowano: ' + d.baza_data;
 
       const rendered = renderScenario(d);
       document.getElementById('hero-zone').innerHTML = rendered.hero;
@@ -477,6 +478,8 @@
   fetch('/api/version').then(r => r.json()).then(d => {
     const el = document.getElementById('app-version');
     if (el) el.textContent = d.version;
+    const bazaEl = document.getElementById('baza-info');
+    if (bazaEl && d.baza_data) bazaEl.textContent = ' (' + d.baza_data + ') ';
   });
 
   const _panelBtn = document.getElementById('minimize-btn');
@@ -552,13 +555,13 @@
       (s.pow_ewd && s.pow_ewd !== '\u2014' ? field('Powierzchnia', s.pow_ewd + '\u00a0ha') : '') +
       '</div>';
 
+    const rodzajField = field('Rodzaj powierzenia', s.wlad, 'rodzaj');
     return {
       hero: heroZone,
       data: '<div style="width:100%">' +
         '<hr class="card-divider">' +
         dataGrid +
-        '<hr class="card-divider">' +
-        field('Rodzaj powierzenia', s.wlad, 'rodzaj') +
+        (rodzajField ? '<hr class="card-divider">' + rodzajField : '') +
         '</div>'
     };
   }

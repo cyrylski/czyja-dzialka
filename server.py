@@ -73,7 +73,8 @@ def _log_dzialka(ozn_dz):
 
 @app.route('/api/version')
 def version():
-    return jsonify({'version': APP_VERSION})
+    meta = geopoz_client.get_powierzenia_meta()
+    return jsonify({'version': APP_VERSION, 'baza_data': meta.source_date})
 
 
 @app.route('/')

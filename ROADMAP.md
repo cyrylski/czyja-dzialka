@@ -85,6 +85,11 @@
 
 ### 2026-04-27
 
+**v1.1.5 — Fix: OZN_DZ leading-zero normalization**
+
+- GEOPOZ returns parcel numbers with leading zeros per segment (e.g. `03/06/1/7`), while the TZ CSV stores them without (e.g. `3/06/1/7`). This caused silent lookup misses — including the confirmed ZZM parcel `03/06/1/7` (Park Sołacki).
+- Added `_normalize_ozn_dz()` in `geopoz_client.py`: strips leading zeros from each `/`-separated segment. Applied at load time in both loaders and at lookup time in both getters.
+
 **v1.1.4 — Fix: TZ CSV checked before GEOPOZ inference (same session)**
 
 - TZ CSV (trwały zarząd) is now checked as **branch 3** in the decision tree — immediately after the two XLSX powierzenia branches and before all GEOPOZ-inferred logic.

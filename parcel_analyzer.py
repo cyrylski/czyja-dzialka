@@ -7,20 +7,20 @@ from geopoz_client import ParcelAttributes, PowierzenieEntry, PowierzeniesMeta, 
 class ScenarioType(str, Enum):
     XLSX_MULTI    = 'xlsx_multi'    # branch 1: pow_list.length > 1
     XLSX_SINGLE   = 'xlsx_single'   # branch 2: pow_list.length == 1
-    ZDM_CITY      = 'zdm_city'      # branch 3: isRoads && isCityOwned
-    ZDM_OTHER     = 'zdm_other'     # branch 4: isRoads && !isCityOwned
-    CHURCH        = 'church'        # branch 5: isChurch
-    SKARB_UW      = 'skarb_uw'      # branch 6: isSkarb && WLAD contains 'Użytkowanie wieczyste'
-    SKARB_ZASOB   = 'skarb_zasob'   # branch 7: isSkarb && WLAD contains 'Gospodarowanie zasobem'
-    SKARB_TZ      = 'skarb_tz'      # branch 7b: isSkarb && WLAD contains 'Trwały zarząd'
-    SKARB_OTHER   = 'skarb_other'   # branch 8: isSkarb fallback
-    GMINNA_ENTITY = 'gminna_entity' # branch 9a: isGminnaEntity
-    PRIVATE       = 'private'       # branch 9: !isCityOwned (non-city, non-state, non-church)
-    CITY_MIXED    = 'city_mixed'    # branch 10: isMixedOwnership && 'Gospodarowanie zasobem'
-    CITY_ZASOB    = 'city_zasob'    # branch 11: isCityOwned && 'Gospodarowanie zasobem'
-    CITY_UW       = 'city_uw'       # branch 12: isCityOwned && 'Użytkowanie wieczyste'
-    CITY_TZ       = 'city_tz'       # branch 13: isCityOwned && 'Trwały zarząd'
-    UNKNOWN       = 'unknown'       # branch 14: unrecognised combination
+    SKARB_TZ      = 'skarb_tz'      # branch 3a: tz_entries found && isSkarb
+    CITY_TZ       = 'city_tz'       # branch 3b: tz_entries found && !isSkarb; also branch 13 inferred fallback
+    ZDM_CITY      = 'zdm_city'      # branch 4: isRoads && isCityOwned
+    ZDM_OTHER     = 'zdm_other'     # branch 5: isRoads && !isCityOwned
+    CHURCH        = 'church'        # branch 6: isChurch
+    SKARB_UW      = 'skarb_uw'      # branch 7: isSkarb && WLAD contains 'Użytkowanie wieczyste'
+    SKARB_ZASOB   = 'skarb_zasob'   # branch 8: isSkarb && WLAD contains 'Gospodarowanie zasobem'
+    SKARB_OTHER   = 'skarb_other'   # branch 9: isSkarb fallback (incl. WLAD 'Trwały zarząd' not in TZ CSV)
+    GMINNA_ENTITY = 'gminna_entity' # branch 10: isGminnaEntity
+    PRIVATE       = 'private'       # branch 11: !isCityOwned (non-city, non-state, non-church)
+    CITY_MIXED    = 'city_mixed'    # branch 12: isMixedOwnership && 'Gospodarowanie zasobem'
+    CITY_ZASOB    = 'city_zasob'    # branch 13: isCityOwned && 'Gospodarowanie zasobem'
+    CITY_UW       = 'city_uw'       # branch 14: isCityOwned && 'Użytkowanie wieczyste'
+    UNKNOWN       = 'unknown'       # branch 15: unrecognised combination
 
 
 @dataclass
@@ -212,18 +212,10 @@ def analyze_parcel(
             True, [], 'inferred',
         )
 
-    # 7b — SP + Trwały zarząd (may be state or city unit, e.g. school)
+    # 7b — SP + Trwały zarząd but parcel not in TZ CSV (data gap in registry)
     if is_skarb and 'Trwały zarząd' in wlad:
-        if tz_entries:
-            return _base(
-                ScenarioType.SKARB_TZ,
-                'Tą działką zarządza',
-                tz_entries[0].jednostka or 'jednostka państwowa lub miejska',
-                'Działka Skarbu Państwa oddana w trwały zarząd.',
-                True, [], 'confirmed', tz=tz_entries,
-            )
         return _base(
-            ScenarioType.SKARB_TZ,
+            ScenarioType.SKARB_OTHER,
             'Działka w trwałym zarządzie jednostki państwowej lub miejskiej',
             None,
             'W razie pytań zwróć się do <a href="https://bip.poznan.pl/bip/wydzial-gospodarki-nieruchomosciami,24/">Wydziału Gospodarki Nieruchomościami</a>.',
@@ -372,16 +364,8 @@ def analyze_parcel(
             True, [], 'inferred',
         )
 
-    # 13 — City parcel + Trwały zarząd (Art. 43 UGN — TZ held by public units only)
+    # 13 — City parcel + Trwały zarząd but parcel not in TZ CSV (data gap in registry)
     if is_city and 'Trwały zarząd' in wlad:
-        if tz_entries:
-            return _base(
-                ScenarioType.CITY_TZ,
-                'Tą działką zarządza',
-                tz_entries[0].jednostka or 'jednostka miejska',
-                'Działka Miasta Poznań oddana w trwały zarząd.',
-                True, [], 'confirmed', tz=tz_entries,
-            )
         return _base(
             ScenarioType.CITY_TZ,
             'Działka w trwałym zarządzie jednostki miejskiej',

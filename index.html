@@ -479,7 +479,7 @@
     const el = document.getElementById('app-version');
     if (el) el.textContent = d.version;
     const bazaEl = document.getElementById('baza-info');
-    if (bazaEl && d.baza_data) bazaEl.textContent = ' (' + d.baza_data + ') ';
+    if (bazaEl && d.app_update_date) bazaEl.textContent = ' (' + d.app_update_date + ') ';
   });
 
   const _panelBtn = document.getElementById('minimize-btn');

@@ -12,6 +12,7 @@ import geopoz_client
 import parcel_analyzer
 
 APP_VERSION = 'v1.1.5'
+APP_UPDATE_DATE = '2026-04-30'
 
 app = Flask(__name__, static_folder='.')
 
@@ -73,8 +74,7 @@ def _log_dzialka(ozn_dz):
 
 @app.route('/api/version')
 def version():
-    meta = geopoz_client.get_powierzenia_meta()
-    return jsonify({'version': APP_VERSION, 'baza_data': meta.source_date})
+    return jsonify({'version': APP_VERSION, 'app_update_date': APP_UPDATE_DATE})
 
 
 @app.route('/')

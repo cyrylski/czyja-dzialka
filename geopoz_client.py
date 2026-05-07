@@ -307,6 +307,108 @@ def get_parcel_info(lat: float, lon: float) -> tuple[ParcelAttributes | None, st
     return attrs, None
 
 
+def _polygon_sample_point(geometry: dict) -> tuple[float, float] | None:
+    """Returns a (lon, lat) point near the centre of a Polygon/MultiPolygon
+    suitable for klasouzytki sampling. Falls back to first vertex on degenerate input."""
+    if not geometry:
+        return None
+    coords = geometry.get('coordinates') or []
+    if geometry.get('type') == 'MultiPolygon':
+        if not coords or not coords[0] or not coords[0][0]:
+            return None
+        ring = coords[0][0]
+    elif geometry.get('type') == 'Polygon':
+        if not coords or not coords[0]:
+            return None
+        ring = coords[0]
+    else:
+        return None
+    if not ring:
+        return None
+    sx = sum(p[0] for p in ring) / len(ring)
+    sy = sum(p[1] for p in ring) / len(ring)
+    return sx, sy
+
+
+def _ozn_cql_variants(ozn_dz: str) -> list[str]:
+    """GEOPOZ stores OZN_DZ with inconsistent leading-zero padding (e.g. '03/06/1/7').
+    The slug arriving from the URL is normalised. Generate all 2^n combinations of
+    segments padded to width 2 vs as-is, so the CQL filter matches whichever form
+    the layer actually holds."""
+    parts = ozn_dz.split('/')
+    variants: set[str] = set()
+    for mask in range(1 << len(parts)):
+        out = []
+        for i, p in enumerate(parts):
+            if (mask >> i) & 1 and p.isdigit() and len(p) < 2:
+                out.append(p.zfill(2))
+            else:
+                out.append(p)
+        variants.add('/'.join(out))
+    return sorted(variants)
+
+
+def get_parcel_info_by_ozn(ozn_dz: str) -> tuple[ParcelAttributes | None, str | None]:
+    """Looks up a parcel by its OZN_DZ identifier (e.g. '3/6/1/7' or '03/06/1/7').
+    Performs a WFS GetFeature on dzialki_szraw_sql with a CQL filter, then samples
+    klasouzytki at the polygon centroid. Returns (None, None) if the parcel doesn't
+    exist; (None, error) on network failure."""
+    ozn_dz = (ozn_dz or '').strip()
+    if not ozn_dz:
+        return None, None
+    variants = _ozn_cql_variants(_normalize_ozn_dz(ozn_dz))
+    cql = ' OR '.join(f"OZN_DZ='{v}'" for v in variants)
+
+    wfs_params = {
+        'SERVICE': 'WFS', 'VERSION': '2.0.0', 'REQUEST': 'GetFeature',
+        'TYPENAMES': 'dzialki_szraw_sql',
+        'OUTPUTFORMAT': 'application/json', 'SRSNAME': 'CRS:84',
+        'CQL_FILTER': cql,
+        'COUNT': '1',
+    }
+    try:
+        r = requests.get(GEOSERVER, params=wfs_params, timeout=15)
+    except Exception as e:
+        print(f'[WFS by-ozn] exception: {e}')
+        return None, 'Serwer GEOPOZ chwilowo niedostępny. Spróbuj ponownie za chwilę.'
+
+    if r.status_code != 200:
+        return None, f'GeoServer zwrocil {r.status_code}'
+
+    try:
+        data = r.json()
+    except Exception:
+        return None, 'Nieprawidlowa odpowiedz GeoServer'
+
+    features = data.get('features', [])
+    if not features:
+        return None, None
+
+    f0 = features[0]
+    p = f0.get('properties') or {}
+    geometry = f0.get('geometry')
+
+    klasouzytki = ''
+    sample = _polygon_sample_point(geometry) if geometry else None
+    if sample is not None:
+        try:
+            easting, northing = _coords_to_epsg2177(sample[0], sample[1])
+            klasouzytki = _fetch_klasouzytki(easting, northing)
+        except Exception as e:
+            print(f'[KLAS by-ozn] exception: {e}')
+
+    return ParcelAttributes(
+        ozn_dz=(p.get('OZN_DZ') or ozn_dz),
+        nrd=(p.get('NRD') or ''),
+        wlasc=(p.get('WLASC') or '').strip().rstrip(','),
+        wlad=(p.get('WLAD') or '').strip().lstrip('- ').rstrip(','),
+        pow_ewd=str(p.get('POW_EWD') or ''),
+        adres=(p.get('ADRES_DZIALKI') or ''),
+        klasouzytki=klasouzytki,
+        geometry=geometry,
+    ), None
+
+
 def get_powierzenia(ozn_dz: str) -> list[PowierzenieEntry]:
     """Looks up ozn_dz in the in-memory POWIERZENIA dict loaded at startup."""
     return _POWIERZENIA.get(_normalize_ozn_dz(ozn_dz), [])

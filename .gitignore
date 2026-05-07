@@ -3,3 +3,4 @@ ANALYTICS_PLAN.md
 PRODUCTION_PLAN.md
 analytics.log
 ARCHITECTURE.md
+__pycache__/

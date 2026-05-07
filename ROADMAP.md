@@ -154,3 +154,9 @@ Both static data sources (`powierzenia` and `trwaly-zarzad`) are public reports 
 ### Circle-to-parcel border morphing animation
 
 On parcel tap, animate the selection circle smoothly transitioning into the parcel's actual boundary outline. Uses flubber.js for SVG path interpolation between the circle marker and the GeoJSON polygon shape. Requires converting Leaflet's circleMarker from a `<circle>` SVG element to a `<path>`, projecting the GeoJSON polygon to screen coordinates, and cancelling the animation cleanly if the user taps another parcel mid-animation (hooks into the existing request token logic). Estimated complexity: medium (~1 day). Result would be a polished, app-like selection experience.
+
+---
+
+### Shareable parcel URLs — open question
+
+Rozważam ukrywanie przycisku zamiast disabled dla działek bez zarządcy — odkładam decyzję na później.

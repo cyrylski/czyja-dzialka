@@ -248,6 +248,48 @@
     #layer-toggle:hover { background: #f9fafb; }
     #layer-toggle.satellite { background: #1a56a0; color: white; }
 
+    #share-btn {
+      position: absolute;
+      bottom: calc(100% + 12px);
+      right: 16px;
+      width: 45px;
+      height: 45px;
+      background: white;
+      border: none;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #374151;
+      cursor: pointer;
+      box-shadow: 0 1px 5px rgba(0,0,0,0.25);
+      transition: background 0.2s;
+      z-index: 1001;
+    }
+    #share-btn:hover { background: #f9fafb; }
+    #share-btn[hidden] { display: none; }
+
+    #toast {
+      position: absolute;
+      bottom: calc(100% + 70px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1f2937;
+      color: white;
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+      z-index: 1002;
+      white-space: nowrap;
+      animation: toastIn 0.2s ease;
+    }
+    #toast[hidden] { display: none; }
+    @keyframes toastIn {
+      from { opacity: 0; transform: translate(-50%, 8px); }
+      to   { opacity: 1; transform: translateX(-50%); }
+    }
+
   </style>
 </head>
 <body>
@@ -261,6 +303,16 @@
 </div>
 
 <div id="panel">
+  <div id="toast" hidden></div>
+  <button id="share-btn" aria-label="Udostępnij" title="Udostępnij">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="18" cy="5" r="3"/>
+      <circle cx="6" cy="12" r="3"/>
+      <circle cx="18" cy="19" r="3"/>
+      <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+      <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+    </svg>
+  </button>
   <div id="card-wrap">
     <button id="minimize-btn" aria-label="Zwiń panel">
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -342,8 +394,10 @@
     }
   });
 
-  // Geolokalizacja przy starcie
-  if (navigator.geolocation) {
+  const _hasDeeplink = /^\/dzialka\/.+/.test(window.location.pathname);
+
+  // Geolokalizacja przy starcie — pomijamy gdy wchodzimy z linku do działki
+  if (navigator.geolocation && !_hasDeeplink) {
     navigator.geolocation.getCurrentPosition(
       function(pos) {
         const lat = pos.coords.latitude;
@@ -372,6 +426,8 @@
   const card = document.getElementById('card');
 
   let requestToken = 0;
+  let currentParcel = null;
+  const sharedThisSession = new Set();
 
   // Rozróżnienie single tap od double tap
   let clickTimer = null;
@@ -416,13 +472,73 @@
     }
   }
 
+  function clearSelectionLayers() {
+    if (parcelLayer) { parcelLayer.remove(); parcelLayer = null; }
+    if (marker) { marker.remove(); marker = null; }
+    if (selectionCircle) { selectionCircle.remove(); selectionCircle = null; }
+  }
+
+  function applyScenario(d, fallbackLatLng) {
+    if (d.geometry) {
+      parcelLayer = L.geoJSON({ type: 'Feature', geometry: d.geometry }, {
+        style: { color: '#2b6cb0', weight: 3, fillColor: '#4299e1', fillOpacity: 0.35, className: 'parcel-entering' }
+      }).addTo(map);
+      const center = parcelLayer.getBounds().getCenter();
+      L.tooltip({ permanent: true, direction: 'center', className: 'parcel-label' })
+        .setContent(d.ozn_dz)
+        .setLatLng(center)
+        .addTo(parcelLayer);
+    } else if (fallbackLatLng) {
+      marker = L.circleMarker(fallbackLatLng, {
+        radius: 8, color: '#2b6cb0', fillColor: '#4299e1',
+        fillOpacity: 0.9, weight: 2
+      }).addTo(map);
+    }
+
+    const rendered = renderScenario(d);
+    document.getElementById('hero-zone').innerHTML = rendered.hero;
+    setCardContent('', rendered.data);
+
+    currentParcel = d;
+    updateShareButton();
+  }
+
+  function ozn_to_slug(ozn) {
+    return (ozn || '').split('/').map(s => s.replace(/^0+(?=\d)/, '')).join('-');
+  }
+  function slug_to_ozn(slug) {
+    return (slug || '').split('-').join('/');
+  }
+
+  function updateUrl(ozn) {
+    if (!ozn) return;
+    const slug = ozn_to_slug(ozn);
+    const target = '/dzialka/' + slug;
+    if (window.location.pathname === target) return;
+    history.pushState({ ozn }, '', target);
+  }
+
+  function updateShareButton() {
+    const btn = document.getElementById('share-btn');
+    if (!btn) return;
+    const d = currentParcel;
+    btn.hidden = !!d && !d.ozn_dz;
+  }
+
+  function showToast(msg, ms) {
+    const t = document.getElementById('toast');
+    if (!t) return;
+    t.textContent = msg;
+    t.hidden = false;
+    if (t._timer) clearTimeout(t._timer);
+    t._timer = setTimeout(() => { t.hidden = true; t._timer = null; }, ms || 3000);
+  }
+
   async function handleSingleClick(e) {
     const { lat, lng } = e.latlng;
     const myToken = ++requestToken;
 
-    if (parcelLayer) { parcelLayer.remove(); parcelLayer = null; }
-    if (marker) { marker.remove(); marker = null; }
-    if (selectionCircle) { selectionCircle.remove(); selectionCircle = null; }
+    clearSelectionLayers();
 
     selectionCircle = L.circleMarker([lat, lng], {
       radius: 10,
@@ -446,32 +562,47 @@
         return;
       }
 
-      if (d.geometry) {
-        parcelLayer = L.geoJSON({ type: 'Feature', geometry: d.geometry }, {
-          style: { color: '#2b6cb0', weight: 3, fillColor: '#4299e1', fillOpacity: 0.35, className: 'parcel-entering' }
-        }).addTo(map);
-        const center = parcelLayer.getBounds().getCenter();
-        L.tooltip({ permanent: true, direction: 'center', className: 'parcel-label' })
-          .setContent(d.ozn_dz)
-          .setLatLng(center)
-          .addTo(parcelLayer);
-      } else {
-        marker = L.circleMarker([lat, lng], {
-          radius: 8, color: '#2b6cb0', fillColor: '#4299e1',
-          fillOpacity: 0.9, weight: 2
-        }).addTo(map);
-      }
-
-      const bazaEl = document.getElementById('baza-info');
-
-      const rendered = renderScenario(d);
-      document.getElementById('hero-zone').innerHTML = rendered.hero;
-      setCardContent('', rendered.data);
+      applyScenario(d, [lat, lng]);
+      updateUrl(d.ozn_dz);
 
     } catch(err) {
       if (myToken !== requestToken) return;
       if (selectionCircle) { fadeRemoveCircle(selectionCircle); selectionCircle = null; }
       setCardContent('error', 'B\u0142\u0105d po\u0142\u0105czenia. Spr\u00f3buj ponownie.');
+    }
+  }
+
+  async function loadFromUrl(ozn) {
+    if (!ozn) return;
+    const myToken = ++requestToken;
+    clearSelectionLayers();
+    setCardContent('loading', '<div style="display:flex;align-items:center;gap:10px"><div class="spinner"></div><span>Pobieranie danych\u2026</span></div>');
+
+    try {
+      const res = await fetch('/api/dzialka_by_ozn?ozn=' + encodeURIComponent(ozn));
+      if (myToken !== requestToken) return;
+
+      if (!res.ok) {
+        showToast('U\u017cyty adres dzia\u0142ki jest niepoprawny');
+        currentParcel = null;
+        updateShareButton();
+        clearSelectionLayers();
+        document.getElementById('hero-zone').innerHTML =
+          '<div class="hero-label">Czyja to dzia\u0142ka?</div>' +
+          '<div class="contextual-note" style="color:#888">Dotknij dowolnego miejsca na mapie aby sprawdzi\u0107 zarz\u0105dc\u0119</div>';
+        setCardContent('', '');
+        map.setView([52.4064, 16.9252], 13);
+        return;
+      }
+
+      const d = await res.json();
+      applyScenario(d, null);
+      if (parcelLayer) {
+        try { map.fitBounds(parcelLayer.getBounds(), { maxZoom: 18, padding: [40, 40] }); } catch (e) {}
+      }
+    } catch(err) {
+      if (myToken !== requestToken) return;
+      showToast('B\u0142\u0105d po\u0142\u0105czenia. Spr\u00f3buj ponownie.');
     }
   }
 
@@ -492,6 +623,67 @@
     _panelBtn.setAttribute('aria-label', isCollapsed ? 'Rozwiń panel' : 'Zwiń panel');
   }
   _panelBtn.addEventListener('click', togglePanel);
+
+  // Share button — Web Share API z fallbackiem do clipboard
+  document.getElementById('share-btn').addEventListener('click', async function() {
+    if (!currentParcel || !currentParcel.ozn_dz) return;
+    const ozn = currentParcel.ozn_dz;
+    const slug = ozn_to_slug(ozn);
+    const shareUrl = window.location.origin + '/dzialka/' + slug;
+
+    if (!sharedThisSession.has(ozn)) {
+      sharedThisSession.add(ozn);
+      try {
+        fetch('/api/log_share', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ozn })
+        });
+      } catch (e) { /* swallow — log best-effort */ }
+    }
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'Czyja to działka?', url: shareUrl });
+      } catch (e) {
+        // user-canceled — silent
+      }
+    } else if (navigator.clipboard && navigator.clipboard.writeText) {
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        showToast('Link skopiowany');
+      } catch (e) {
+        showToast('Nie udało się skopiować linku');
+      }
+    } else {
+      showToast('Udostępnianie niedostępne w tej przeglądarce');
+    }
+  });
+
+  // Popstate (przyciski wstecz/dalej w przeglądarce)
+  window.addEventListener('popstate', function() {
+    const m = window.location.pathname.match(/^\/dzialka\/(.+)$/);
+    if (m) {
+      loadFromUrl(slug_to_ozn(m[1]));
+    } else {
+      ++requestToken;
+      clearSelectionLayers();
+      currentParcel = null;
+      updateShareButton();
+      document.getElementById('hero-zone').innerHTML =
+        '<div class="hero-label">Czyja to działka?</div>' +
+        '<div class="contextual-note" style="color:#888">Dotknij dowolnego miejsca na mapie aby sprawdzić zarządcę</div>';
+      setCardContent('', '');
+    }
+  });
+
+  // Bootstrap z URL — jeśli ktoś wszedł bezpośrednio w /dzialka/<slug>
+  (function initFromUrl() {
+    const m = window.location.pathname.match(/^\/dzialka\/(.+)$/);
+    if (m) {
+      loadFromUrl(slug_to_ozn(m[1]));
+    }
+  })();
 
   function fadeRemoveCircle(circle) {
     const el = circle.getElement();

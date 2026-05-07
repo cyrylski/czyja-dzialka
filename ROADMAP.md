@@ -107,6 +107,79 @@
 
 ---
 
+## Pre-public-release security review (2026-05-07)
+
+Audit done before opening the app to a wider audience. ROADMAP already flagged
+"private analytics with rate-limit / scrape blocking" and "production deployment
+with caching" (see below) — neither was implemented. `flask-limiter` was in
+`requirements.txt` but never imported. The list below is ordered so the most
+availability- and reputation-damaging items are addressed first.
+
+What is **not** a risk (to avoid wasted work):
+- `data/powierzenia-*.xlsx`, `data/trwaly-zarzad-*.csv` — public Poznań cadastre
+  exports, safe to ship.
+- GEOPOZ has no API key to leak — public GeoServer.
+- Internal docs (`TECHNICAL_AUDIT.md`, `PRODUCTION_PLAN.md`, `ANALYTICS_PLAN.md`,
+  `analytics.log`) are already in `.gitignore`.
+
+### P0 — Hard blockers (operator gets banned / spammed within minutes)
+
+1. **Email-per-lookup will brick the Gmail account.** `server.py:_send_log_email`
+   fires a Gmail SMTP login + `ip-api.com` GET on every parcel tap. Gmail free
+   SMTP cap ≈ 500/day; ip-api.com free tier 45 req/min/IP. A school class blows
+   through both. Fix: log to stdout (Fly.io captures it); drop email or send a
+   daily digest from a separate cron.
+2. **No rate limiting on any endpoint.** `flask-limiter` declared but never
+   wired up. Each `/dzialka` or `/api/dzialka_by_ozn` fans out to 4+ upstream
+   WMS/WFS calls — a single attacker gets the Fly.io egress IP banned by
+   GEOPOZ. Fix: import `Limiter` keyed by `get_remote_address`, decorate the
+   three lookup endpoints with `30/minute; 600/day`.
+3. **`/api/log_share` accepts forged POSTs from anywhere.** No CSRF token, no
+   `Origin`/`Referer` check, no rate limit. Any third-party page can drive
+   victim browsers into spamming this, multiplying #1 and #2. Fix: same-origin
+   check + rate limit (lower than view endpoints).
+
+### P1 — Visible-in-public security gaps
+
+4. **GDPR exposure.** IPs + UAs logged and shipped to ip-api.com (cleartext
+   HTTP, US service). Add privacy notice + IP last-octet masking; drop the
+   `_geo_lookup` HTTP call.
+5. **XSS via `innerHTML`.** `index.html` interpolates `s.manager_name`,
+   `s.contextual_note`, `s.wlasc` into innerHTML. No CSP set. Fix: use
+   `textContent` for plain fields; build `contextual_note` from a closed set
+   of server-side templates; add a strict `Content-Security-Policy` via Flask
+   `@app.after_request`.
+6. **CDN scripts loaded without Subresource Integrity.** `index.html` loads
+   Leaflet from unpkg.com without `integrity=`. Add SRI hashes and
+   `crossorigin="anonymous"`.
+7. **Admin email exposed plaintext** in `index.html`. Once indexed, harvested.
+   Replace with JS-rendered fragments or a contact-form relay.
+
+### P2 — Hardening hygiene
+
+8. **CQL injection in WFS filter.** `geopoz_client._ozn_cql_variants` only
+   normalises digits; impact is low (CQL on a public layer) but still bypasses
+   filter logic. Validate `ozn` against `^[0-9]+/[0-9]+/[0-9]+/[0-9]+$` at the
+   API boundary.
+9. **No bounds check on lat/lon.** Add `52.0 < lat < 52.6 and 16.6 < lon < 17.2`
+   short-circuit before hitting GEOPOZ.
+10. **Missing baseline security headers.** Add `X-Content-Type-Options: nosniff`,
+    `Referrer-Policy: strict-origin-when-cross-origin`,
+    `Permissions-Policy: geolocation=(self)`,
+    `Strict-Transport-Security: max-age=31536000; includeSubDomains` via
+    `@app.after_request`.
+11. **Dependencies unpinned, no SCA.** Pin every entry in `requirements.txt`;
+    add a `pip-audit` step in `.github/workflows/deploy.yml`.
+12. **Container runs as root.** Add a non-root `USER` in `Dockerfile` before
+    `CMD`.
+13. **Email password practices.** Verify `git log -p -S "@gmail" --all` shows
+    no committed creds. Add `.env.example` documenting `LOG_EMAIL_FROM`,
+    `LOG_EMAIL_PASSWORD`, `LOG_EMAIL_TO`.
+14. **`analytics.log` writes to ephemeral disk.** With `min_machines=0` on
+    Fly.io the file vanishes on cold start. Switch to stdout (covered by P0.1).
+
+---
+
 ## Planned features / Ideas
 
 ### Private analytics system

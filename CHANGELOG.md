@@ -1,5 +1,23 @@
 # Changelog
 
+## v1.3.0 — 2026-05-07
+
+### Security (pre-public-release P0)
+- Wired up Flask-Limiter (already in requirements but never imported): 30/min;600/day on `/dzialka` and `/api/dzialka_by_ozn`, 10/min;200/day on `/api/log_share`, app-wide default 200/min;5000/day. Static and SPA routes exempt.
+- Added same-origin guard on `POST /api/log_share` so third-party pages can no longer drive victim browsers into spamming the endpoint (returns 403 on missing or foreign `Origin`/`Referer`).
+- Removed per-lookup Gmail SMTP send and the synchronous `ip-api.com` GET that ran on every parcel tap — both would have been exhausted within minutes of public traffic.
+- Added `ProxyFix` so Flask sees the real client IP and scheme behind Fly.io's TLS terminator (also keys Flask-Limiter correctly).
+- Mask IPv4 last octet / IPv6 lower 64 bits before logging — partial GDPR fix.
+
+### Server
+- Replaced file-based `analytics.log` writes (lossy on Fly.io's ephemeral disk with `min_machines=0`) with structured stdout logging via the `analytics` logger; Fly.io captures it and `flyctl logs` streams it.
+- Added in-memory event buffer (deque, capped at 1000) and graceful-shutdown email digest: on machine spindown gunicorn lets the worker exit cleanly, `atexit` fires, and a single SMTP message is sent containing all events accumulated during the session. Reuses existing `LOG_EMAIL_FROM`/`LOG_EMAIL_PASSWORD`/`LOG_EMAIL_TO` env vars; no-op if any is missing or the buffer is empty.
+
+### Docs
+- Added "Pre-public-release security review" section to `ROADMAP.md` documenting the full P0/P1/P2 risk register, with file:line references, fix outlines, and scope notes (e.g. that `data/*.xlsx`/`*.csv` are public Poznań cadastre exports and safe to ship).
+
+---
+
 ## v1.2.0 — 2026-05-07
 
 ### Added

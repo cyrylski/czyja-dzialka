@@ -349,19 +349,20 @@ def _ozn_cql_variants(ozn_dz: str) -> list[str]:
 
 
 def get_parcel_info_by_ozn(ozn_dz: str) -> tuple[ParcelAttributes | None, str | None]:
-    """Looks up a parcel by its OZN_DZ identifier (e.g. '3/6/1/7' or '03/06/1/7').
-    Performs a WFS GetFeature on dzialki_szraw_sql with a CQL filter, then samples
-    klasouzytki at the polygon centroid. Returns (None, None) if the parcel doesn't
-    exist; (None, error) on network failure."""
+    """Resolves a parcel identifier (e.g. '3/6/1/7' or '03/06/1/7') to full
+    ParcelAttributes. WFS exposes only egib:dzialki_ewidencyjne_sql (geometry +
+    OZN_DZIALKI), so we fetch the parcel's polygon by OZN_DZIALKI, take a point
+    inside it, and delegate to get_parcel_info(lat, lon) — the same path used
+    for map clicks, which yields ownership data via WMS GetFeatureInfo."""
     ozn_dz = (ozn_dz or '').strip()
     if not ozn_dz:
         return None, None
     variants = _ozn_cql_variants(_normalize_ozn_dz(ozn_dz))
-    cql = ' OR '.join(f"OZN_DZ='{v}'" for v in variants)
+    cql = ' OR '.join(f"OZN_DZIALKI='{v}'" for v in variants)
 
     wfs_params = {
         'SERVICE': 'WFS', 'VERSION': '2.0.0', 'REQUEST': 'GetFeature',
-        'TYPENAMES': 'dzialki_szraw_sql',
+        'TYPENAMES': 'egib:dzialki_ewidencyjne_sql',
         'OUTPUTFORMAT': 'application/json', 'SRSNAME': 'CRS:84',
         'CQL_FILTER': cql,
         'COUNT': '1',
@@ -384,29 +385,13 @@ def get_parcel_info_by_ozn(ozn_dz: str) -> tuple[ParcelAttributes | None, str | 
     if not features:
         return None, None
 
-    f0 = features[0]
-    p = f0.get('properties') or {}
-    geometry = f0.get('geometry')
-
-    klasouzytki = ''
+    geometry = features[0].get('geometry')
     sample = _polygon_sample_point(geometry) if geometry else None
-    if sample is not None:
-        try:
-            easting, northing = _coords_to_epsg2177(sample[0], sample[1])
-            klasouzytki = _fetch_klasouzytki(easting, northing)
-        except Exception as e:
-            print(f'[KLAS by-ozn] exception: {e}')
+    if sample is None:
+        return None, None
 
-    return ParcelAttributes(
-        ozn_dz=(p.get('OZN_DZ') or ozn_dz),
-        nrd=(p.get('NRD') or ''),
-        wlasc=(p.get('WLASC') or '').strip().rstrip(','),
-        wlad=(p.get('WLAD') or '').strip().lstrip('- ').rstrip(','),
-        pow_ewd=str(p.get('POW_EWD') or ''),
-        adres=(p.get('ADRES_DZIALKI') or ''),
-        klasouzytki=klasouzytki,
-        geometry=geometry,
-    ), None
+    lon, lat = sample
+    return get_parcel_info(lat, lon)
 
 
 def get_powierzenia(ozn_dz: str) -> list[PowierzenieEntry]:

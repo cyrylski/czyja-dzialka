@@ -1,6 +1,12 @@
+import atexit
 import dataclasses
 import logging
 import os
+import smtplib
+import threading
+from collections import deque
+from datetime import datetime, timezone
+from email.mime.text import MIMEText
 
 from flask import Flask, jsonify, request, send_from_directory
 from flask_limiter import Limiter
@@ -10,7 +16,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 import geopoz_client
 import parcel_analyzer
 
-APP_VERSION = 'v1.2.0'
+APP_VERSION = 'v1.3.0'
 APP_UPDATE_DATE = '2026-05-07'
 
 app = Flask(__name__, static_folder='.')
@@ -28,6 +34,15 @@ limiter = Limiter(
     default_limits=['200/minute', '5000/day'],
     headers_enabled=True,
 )
+
+_EMAIL_FROM = os.environ.get('LOG_EMAIL_FROM', '')
+_EMAIL_PASS = os.environ.get('LOG_EMAIL_PASSWORD', '')
+_EMAIL_TO   = os.environ.get('LOG_EMAIL_TO', '')
+
+_BUFFER_MAX = 1000
+_buffer: deque = deque(maxlen=_BUFFER_MAX)
+_buffer_lock = threading.Lock()
+_flushed = False
 
 
 def _mask_ip(ip):
@@ -56,7 +71,51 @@ def _is_same_origin():
 def _log_dzialka(ozn_dz, source='map'):
     ip = _mask_ip(request.remote_addr or '')
     ua = request.headers.get('User-Agent', '')[:200]
+    ts = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')
     _analytics.info('lookup ozn=%s source=%s ip=%s ua=%r', ozn_dz, source, ip, ua)
+    with _buffer_lock:
+        _buffer.append({'ts': ts, 'ozn': ozn_dz, 'source': source, 'ip': ip, 'ua': ua})
+
+
+def _flush_buffer_email():
+    """Drains the in-memory event buffer into a single SMTP message. Intended
+    to fire on graceful machine shutdown (atexit) — Fly.io's idle-stop sends
+    SIGTERM, gunicorn lets the worker exit cleanly, and atexit then runs."""
+    global _flushed
+    if _flushed:
+        return
+    _flushed = True
+    if not all([_EMAIL_FROM, _EMAIL_PASS, _EMAIL_TO]):
+        return
+    with _buffer_lock:
+        events = list(_buffer)
+        _buffer.clear()
+    if not events:
+        return
+    lines = [
+        f"| {e['ts']} | {e['source']}-{e['ozn']} | {e['ip']} | {e['ua']} |"
+        for e in events
+    ]
+    body = (
+        f"Bufor zdarzeń przed wyłączeniem maszyny ({len(events)} wpisów):\n\n"
+        + '\n'.join(lines)
+        + '\n'
+    )
+    msg = MIMEText(body, 'plain', 'utf-8')
+    msg['Subject'] = f'[działka] digest x{len(events)}'
+    msg['From'] = _EMAIL_FROM
+    msg['To'] = _EMAIL_TO
+    try:
+        with smtplib.SMTP('smtp.gmail.com', 587, timeout=10) as s:
+            s.starttls()
+            s.login(_EMAIL_FROM, _EMAIL_PASS)
+            s.sendmail(_EMAIL_FROM, _EMAIL_TO, msg.as_string())
+        _analytics.info('flushed %d events via email', len(events))
+    except Exception as e:
+        _analytics.warning('flush email failed: %s', e)
+
+
+atexit.register(_flush_buffer_email)
 
 
 @app.route('/api/version')

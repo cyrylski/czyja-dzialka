@@ -248,26 +248,31 @@
     #layer-toggle:hover { background: #f9fafb; }
     #layer-toggle.satellite { background: #1a56a0; color: white; }
 
-    #share-btn {
-      position: absolute;
-      bottom: calc(100% + 12px);
-      right: 16px;
-      width: 45px;
-      height: 45px;
-      background: white;
-      border: none;
-      border-radius: 8px;
+    .parcel-id-row {
       display: flex;
       align-items: center;
-      justify-content: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    #share-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 10px;
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
       color: #374151;
+      font-size: 0.8125rem;
       cursor: pointer;
-      box-shadow: 0 1px 5px rgba(0,0,0,0.25);
       transition: background 0.2s;
-      z-index: 1001;
     }
     #share-btn:hover { background: #f9fafb; }
-    #share-btn[hidden] { display: none; }
+    #share-btn svg { width: 14px; height: 14px; }
+    .share-btn-label { white-space: nowrap; }
+
+    .fields-row .field.field-pow { display: none; }
 
     #toast {
       position: absolute;
@@ -304,15 +309,6 @@
 
 <div id="panel">
   <div id="toast" hidden></div>
-  <button id="share-btn" aria-label="Udostępnij" title="Udostępnij">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="18" cy="5" r="3"/>
-      <circle cx="6" cy="12" r="3"/>
-      <circle cx="18" cy="19" r="3"/>
-      <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
-      <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
-    </svg>
-  </button>
   <div id="card-wrap">
     <button id="minimize-btn" aria-label="Zwiń panel">
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -624,8 +620,10 @@
   }
   _panelBtn.addEventListener('click', togglePanel);
 
-  // Share button — Web Share API z fallbackiem do clipboard
-  document.getElementById('share-btn').addEventListener('click', async function() {
+  // Share button — Web Share API z fallbackiem do clipboard.
+  // Delegacja na #panel, bo button jest częścią dynamicznie renderowanej karty.
+  document.getElementById('panel').addEventListener('click', async function(e) {
+    if (!e.target.closest('#share-btn')) return;
     if (!currentParcel || !currentParcel.ozn_dz) return;
     const ozn = currentParcel.ozn_dz;
     const slug = ozn_to_slug(ozn);
@@ -741,10 +739,30 @@
       }
     }
 
+    const parcelIdCell = s.ozn_dz ?
+      '<div class="field">' +
+        '<div class="label">Numer dzia\u0142ki</div>' +
+        '<div class="parcel-id-row">' +
+          '<div class="value parcel-id">' + s.ozn_dz + '</div>' +
+          '<button id="share-btn" type="button" aria-label="Kopiuj link" title="Kopiuj link">' +
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+              '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>' +
+              '<line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>' +
+              '<line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>' +
+            '</svg>' +
+            '<span class="share-btn-label">kopiuj link</span>' +
+          '</button>' +
+        '</div>' +
+      '</div>' : '';
+
+    const powField = (s.pow_ewd && s.pow_ewd !== '\u2014')
+      ? field('Powierzchnia', s.pow_ewd + '\u00a0ha').replace('class="field"', 'class="field field-pow"')
+      : '';
+
     const dataGrid = '<div class="fields-row">' +
-      field('Numer dzia\u0142ki', s.ozn_dz, 'parcel-id') +
+      parcelIdCell +
       (s.show_wlasc ? field('W\u0142a\u015bciciel', s.wlasc) : '') +
-      (s.pow_ewd && s.pow_ewd !== '\u2014' ? field('Powierzchnia', s.pow_ewd + '\u00a0ha') : '') +
+      powField +
       '</div>';
 
     const rodzajField = field('Rodzaj powierzenia', s.wlad, 'rodzaj');

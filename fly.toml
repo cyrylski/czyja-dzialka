@@ -5,6 +5,8 @@
 
 app = 'czyja-dzialka'
 primary_region = 'ams'
+kill_signal = 'SIGTERM'
+kill_timeout = 15
 
 [build]
 

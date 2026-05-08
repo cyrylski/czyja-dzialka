@@ -112,7 +112,7 @@ for r in records:
 # --- Write Markdown output ---
 SCENARIO_ORDER = [
     'xlsx_multi', 'xlsx_single',
-    'zdm_city', 'zdm_other',
+    'zdm_city', 'zdm_skarb', 'zdm_private',
     'church',
     'skarb_uw', 'skarb_zasob', 'skarb_tz', 'skarb_other',
     'gminna_entity',
@@ -157,6 +157,49 @@ for i, r in enumerate(rows, 1):
         f"| {i} | {wlasc_cell} | `{r['scenario_type']}` | {esc(r['manager_label'])} "
         f"| {esc(r['manager_name'])} | {esc(r['contextual_note'])} "
         f"| {'✓' if r['show_wlasc'] else '✗'} | {r['confidence']} | `{r['ozn_dz']}` |"
+    )
+
+# --- ZDM trigger breakdown ---
+zdm_records = [r for r in records if r['scenario_type'] in ('zdm_city', 'zdm_skarb', 'zdm_private')]
+
+def _zdm_trigger(r: dict) -> str:
+    by_wlad = 'dróg publicznych' in r['wlad']
+    by_klas = r['klasouzytki'] == 'dr'
+    if by_wlad and by_klas:
+        return 'BOTH'
+    if by_wlad:
+        return 'WLAD'
+    if by_klas:
+        return 'KLASOUZYTKI'
+    return 'UNKNOWN'
+
+trigger_counts: dict[str, int] = defaultdict(int)
+for r in zdm_records:
+    trigger_counts[_zdm_trigger(r)] += 1
+
+md_lines.extend([
+    "", "---", "",
+    "## ZDM trigger breakdown",
+    "",
+    f"ZDM parcels in sample: **{len(zdm_records)}**",
+    "",
+    "| Trigger | Count |",
+    "|---------|-------|",
+])
+for t in ('WLAD', 'KLASOUZYTKI', 'BOTH', 'UNKNOWN'):
+    c = trigger_counts.get(t, 0)
+    if c:
+        md_lines.append(f"| `{t}` | {c} |")
+
+md_lines.extend([
+    "",
+    "| ozn_dz | scenario | wlasc | wlad | klasouzytki | trigger |",
+    "|--------|----------|-------|------|-------------|---------|",
+])
+for r in sorted(zdm_records, key=lambda x: (x['scenario_type'], x['ozn_dz'])):
+    md_lines.append(
+        f"| `{r['ozn_dz']}` | `{r['scenario_type']}` | {esc(r['wlasc'])} "
+        f"| {esc(r['wlad'])} | `{r['klasouzytki']}` | `{_zdm_trigger(r)}` |"
     )
 
 output_path = 'wlasc_survey_results.md'

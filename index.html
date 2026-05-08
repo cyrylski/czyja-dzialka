@@ -733,7 +733,7 @@
         heroZone += '<div class="hero-name' + orangeCls + '">' + s.manager_name + '</div>';
       }
       if (s.contextual_note) {
-        const muted = s.type !== 'zdm_other' && s.type !== 'private' ? ' style="color:#888"' : '';
+        const muted = ['zdm_skarb', 'zdm_private', 'private'].includes(s.type) ? '' : ' style="color:#888"';
         heroZone += '<div class="contextual-note"' + muted + '>' + s.contextual_note + '</div>';
       }
     }

@@ -26,7 +26,8 @@ with `indexOf()`, not strict equality.
 ```javascript
 const isMulti       = powList.length > 1;
 const hasPow        = powList.length >= 1;
-const isRoads       = wlad.indexOf('dróg publicznych') !== -1;
+const isRoads       = wlad.indexOf('dróg publicznych') !== -1
+                   || klasouzytki.split(',').includes('dr');  // multi-value safe
 const isCityOwned   = wlasc.indexOf('Miasto Poznań') !== -1;
 const isSkarb       = wlasc.indexOf('Skarb Państwa') !== -1;
 const isChurch      = wlasc.toLowerCase().indexOf('kościoły') !== -1
@@ -34,6 +35,10 @@ const isChurch      = wlasc.toLowerCase().indexOf('kościoły') !== -1
 const isMixedOwnership = isCityOwned && wlasc.indexOf('osoba fizyczna') !== -1;
 const isGminnaEntity  = !isCityOwned && !isSkarb && wlasc.toLowerCase().indexOf('gminna') !== -1;
 ```
+
+`isRoads` uses a split-includes check (not `=== 'dr'`) because `KLASOUZYTKI_EGIB` can be
+a comma-separated list of land-use codes (e.g. `'N,RIVb,RV,dr'`). Strict equality would
+silently miss these mixed-classification road parcels.
 
 ---
 
@@ -56,15 +61,22 @@ Branches are evaluated top-to-bottom; the first match wins.
 na prawach powiatu* (Poznań qualifies) the Prezydent Miasta is zarządca of all
 public roads except expressways/highways; ZDM executes this on his behalf.
 
-### 4 — Road parcel, non-city owner (`isRoads && !isCityOwned`, no XLSX entry)
-**Display:** "Tą działką zarządza **Zarząd Dróg Miejskich**"  
-**Note:** "Działka ma innego właściciela, ale ZDM odpowiada za utrzymanie pasa
-drogowego."  
-**Legal basis:** same as branch 3 — zarządca status follows road category, not
-parcel ownership. ZDM manages roads on Skarb Państwa land too.  
-**⚠ Edge case not handled:** expressways and highways within Poznań city limits
-(A2, S5, S11) are managed by **GDDKiA**, not ZDM. These are unlikely to appear
-as individually clickable city-cadastre parcels in practice.
+### 4a — Road parcel, Skarb Państwa owner (`isRoads && isSkarb`, no XLSX entry)
+**Display:** "Tą działką **prawdopodobnie** zarządza **Zarząd Dróg Miejskich**"  
+**Note:** names GDDKiA and ZDW as possible alternatives; links to WGN.  
+**Rationale:** City roads on SP land are usually maintained by ZDM under agreement
+(Art. 19 ust. 5 UoDP applies to all public roads within city limits regardless of
+ownership). However, expressways (GDDKiA — A2, S5, S11) and voivodeship roads (ZDW)
+are exceptions. "Prawdopodobnie" is honest; WGN is the correct fallback contact.
+
+### 4b — Road parcel, private/other owner (`isRoads && !isCityOwned && !isSkarb && !isPowiat && !isGminnaEntity`, no XLSX entry)
+**Display:** "Działka sklasyfikowana jako droga — **zarządca niepewny**"  
+**Note:** explains private road possibility; links to WGN.  
+**Rationale:** `KLASOUZYTKI_EGIB = 'dr'` alone is not sufficient to assign ZDM for
+private owners. The parcel may be an internal estate road or service road managed
+by its owner. No ZDM claim is made.  
+**Guards:** `!isPowiat` and `!isGminnaEntity` let those specific owner types fall
+through to their dedicated branches (Starostwo / WGN) instead of landing here.
 
 ### 5 — Religious owner (`isChurch`)
 **Display:** "Właścicielem i zarządcą działki jest **{wlasc}**"  
@@ -202,15 +214,16 @@ win). It maps `OZN_DZ` → `[{opis, sygnatura}]`.
 
 ## Known limitations and edge cases
 
-1. **GDDKiA roads not handled:** Expressways and highways within Poznań city
-   limits (A2, S5, S11) are managed by GDDKiA, not ZDM. The app has no branch
-   for this. In practice these parcels are unlikely to appear as individually
-   clickable cadastre parcels.
+1. **GDDKiA/ZDW roads on SP land:** Expressways and highways within Poznań city
+   limits (A2, S5, S11) managed by GDDKiA, and voivodeship roads managed by ZDW,
+   will show branch 4a ("prawdopodobnie ZDM") with a note naming the alternatives.
+   In practice these parcels rarely appear as individually clickable cadastre parcels.
 
 2. **Road parcels with stale WLAD:** Some road parcels have `WLAD = "Gospodarowanie
-   zasobem..."` instead of the expected road management string due to outdated EGIB
-   records. These miss `isRoads` and fall to branch 11 (WGN). No automated fix is
-   possible — add individually to the powierzenia XLSX.
+   zasobem..."` instead of the road management string due to outdated EGIB records.
+   `KLASOUZYTKI_EGIB = 'dr'` still triggers `isRoads`, so these now correctly route
+   to branch 3 (city-owned) or 4a/4b (non-city). Previously they fell to branch 11
+   (WGN) — this was fixed when `KLASOUZYTKI_EGIB` was added as a secondary trigger.
 
 3. **NRD field is not a road indicator:** GEOPOZ returns an `NRD` field which appears
    to contain the parcel-number suffix (e.g. `"4/473"` for parcel `"04/13/4/473"`).

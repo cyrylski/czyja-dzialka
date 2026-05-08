@@ -10,7 +10,8 @@ class ScenarioType(str, Enum):
     SKARB_TZ      = 'skarb_tz'      # branch 3a: tz_entries found && isSkarb
     CITY_TZ       = 'city_tz'       # branch 3b: tz_entries found && !isSkarb; also branch 13 inferred fallback
     ZDM_CITY      = 'zdm_city'      # branch 4: isRoads && isCityOwned
-    ZDM_OTHER     = 'zdm_other'     # branch 5: isRoads && !isCityOwned
+    ZDM_SKARB     = 'zdm_skarb'    # branch 5: isRoads && isSkarb
+    ZDM_PRIVATE   = 'zdm_private'  # branch 6: isRoads && !isCityOwned && !isSkarb && !isPowiat && !isGminna
     CHURCH        = 'church'        # branch 6: isChurch
     SKARB_UW      = 'skarb_uw'      # branch 7: isSkarb && WLAD contains 'Użytkowanie wieczyste'
     SKARB_ZASOB   = 'skarb_zasob'   # branch 8: isSkarb && WLAD contains 'Gospodarowanie zasobem'
@@ -48,7 +49,7 @@ class ParcelScenario:
 # --- Private boolean helpers (mirror JS buildCard flags exactly) ---
 
 def _is_roads(wlad: str, klasouzytki: str) -> bool:
-    return 'dróg publicznych' in wlad or klasouzytki == 'dr'
+    return 'dróg publicznych' in wlad or 'dr' in klasouzytki.split(',')
 
 def _is_city_owned(wlasc: str) -> bool:
     return 'Miasto Poznań' in wlasc
@@ -162,7 +163,7 @@ def analyze_parcel(
             True, [], 'confirmed', tz=tz_entries,
         )
 
-    # 4 — Road parcel, city-owned → ZDM (Art. 19 ust. 5 UoDP)
+    # 4 — Road parcel, city-owned → ZDM confirmed (Art. 19 ust. 5 UoDP)
     if is_roads and is_city:
         return _base(
             ScenarioType.ZDM_CITY,
@@ -172,13 +173,23 @@ def analyze_parcel(
             True, [], 'inferred',
         )
 
-    # 4 — Road parcel, non-city owner → ZDM (zarządca follows road category, not ownership)
-    if is_roads and not is_city:
+    # 5 — Road parcel, Skarb Państwa → ZDM probable (state roads in city usually maintained by ZDM)
+    if is_roads and is_skarb:
         return _base(
-            ScenarioType.ZDM_OTHER,
-            'Tą działką zarządza',
+            ScenarioType.ZDM_SKARB,
+            'Tą działką prawdopodobnie zarządza',
             'Zarząd Dróg Miejskich',
-            'Działka ma innego właściciela, ale ZDM odpowiada za utrzymanie pasa drogowego.',
+            'Działka należy do Skarbu Państwa. Drogi w granicach miasta są zazwyczaj utrzymywane przez ZDM, ale zarządcą może być też GDDKiA lub ZDW. W razie wątpliwości skontaktuj się z <a href="https://bip.poznan.pl/bip/wydzial-gospodarki-nieruchomosciami,24/">Wydziałem Gospodarki Nieruchomościami</a>.',
+            True, [], 'inferred',
+        )
+
+    # 6 — Road parcel, private/other owner → uncertain (private roads not managed by ZDM)
+    if is_roads and not is_city and not is_skarb and not _is_powiat(wlasc) and not is_gminna:
+        return _base(
+            ScenarioType.ZDM_PRIVATE,
+            'Działka sklasyfikowana jako droga — zarządca niepewny',
+            None,
+            'Właścicielem jest podmiot prywatny. To może być droga wewnętrzna lub prywatna, którą zarządza właściciel. Dane mogą nie być publicznie dostępne. Potwierdź w <a href="https://bip.poznan.pl/bip/wydzial-gospodarki-nieruchomosciami,24/">Wydziale Gospodarki Nieruchomościami</a>.',
             True, [], 'inferred',
         )
 

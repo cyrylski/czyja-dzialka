@@ -52,27 +52,46 @@ Legal basis: Art. 19 ust. 5 UoDP — ZDM acts on behalf of Prezydent Miasta.
 | Rodzaj powierzenia | Wykonywanie zadań zarządcy dróg publicznych |
 | Shown as | Tą działką zarządza **Zarząd Dróg Miejskich** |
 
-**isRoads trigger:** `WLAD` contains `'dróg publicznych'` **OR** `KLASOUZYTKI_EGIB === 'dr'`.
+**isRoads trigger:** `WLAD` contains `'dróg publicznych'` **OR** `'dr' in KLASOUZYTKI_EGIB.split(',')`.
 `KLASOUZYTKI_EGIB` is fetched from `portal.geopoz.poznan.pl/wmsegib` (concurrent with the WFS geometry call).
 It is set at the classification level and stays `'dr'` even when `WLAD` is stale.
+Split check (not `== 'dr'`) handles multi-value strings like `'N,RIVb,RV,dr'` found in EGIB.
 Test case: parcel 04/13/4/473 (ul. Piotra Tomickiego) — previously routed to WGN, now correctly shows ZDM.
 
 ---
 
-## Branch 4 — Road parcel, non-city owner
+## Branch 4a — Road parcel, Skarb Państwa owner
 
-**Condition:** `isRoads && !isCityOwned` (no XLSX entry)
+**Condition:** `isRoads && isSkarb` (no XLSX entry)
 
-Same as branch 3 but owner is not Miasto Poznań (e.g. Skarb Państwa).
-Zarządca status follows road category, not ownership.
+State-owned road parcel. City roads are usually maintained by ZDM under agreement, but
+state roads (GDDKiA — A2, S5, S11) or voivodeship roads (ZDW) are managed by other
+agencies. Note names alternatives explicitly.
 
 | Field | Example value |
 |---|---|
 | Właściciel | Skarb Państwa |
-| Rodzaj powierzenia | Wykonywanie zadań zarządcy dróg publicznych |
-| Shown as | Tą działką zarządza **Zarząd Dróg Miejskich** + "Działka ma innego właściciela..." |
+| Rodzaj powierzenia | Zarząd / Trwały zarząd / Gospodarowanie zasobem |
+| Shown as | Tą działką **prawdopodobnie** zarządza **Zarząd Dróg Miejskich** + SP note with WGN link |
 
-⚠ GDDKiA roads (A2, S5, S11) not handled — would incorrectly show ZDM.
+---
+
+## Branch 4b — Road parcel, private/other owner
+
+**Condition:** `isRoads && !isCityOwned && !isSkarb && !isPowiat && !isGminnaEntity` (no XLSX entry)
+
+Private owner with road land-use classification. May be an internal estate road or
+service road managed by the owner, not ZDM. Classification alone is not sufficient to
+assign ZDM. WGN is the fallback contact.
+
+| Field | Example value |
+|---|---|
+| Właściciel | spółka handlowa niebędąca cudzoziemcem |
+| Rodzaj powierzenia | — |
+| Shown as | Działka sklasyfikowana jako droga — **zarządca niepewny** + private note with WGN link |
+
+Note: `!isPowiat` and `!isGminnaEntity` guards let powiat-owned and gminna-entity road
+parcels fall through to their dedicated branches (Starostwo / WGN) instead of landing here.
 
 ---
 

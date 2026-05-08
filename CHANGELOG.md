@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.4.0 — 2026-05-08
+
+### Changed
+- Split `ZDM_OTHER` into two scenarios: `ZDM_SKARB` (Skarb Państwa road parcels — "probably ZDM") and `ZDM_PRIVATE` (private owner road parcels — "uncertain, confirm with WGN")
+- Fixed `_is_roads()` to handle multi-value `KLASOUZYTKI_EGIB` strings (e.g. `'N,RIVb,RV,dr'`) — previously only exact `'dr'` matched; city-owned road parcels with mixed land-use classifications fell through to UNKNOWN
+
+### Added
+- `ZDM_SKARB` scenario: contextual note names GDDKiA/ZDW as possible alternative managers for state-owned road parcels within city limits
+- `ZDM_PRIVATE` scenario: honest "uncertain" messaging directing users to WGN for private road parcels
+
+---
+
 ## v1.3.0 — 2026-05-07
 
 ### Security (pre-public-release P0)

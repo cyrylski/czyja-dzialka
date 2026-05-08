@@ -220,21 +220,16 @@ def _bbox_epsg3857_from_geometry(geometry: dict) -> tuple[float, float, float, f
 
 
 def _sample_points_for_bbox(bbox_3857: tuple) -> list[tuple[float, float]]:
-    """Returns 5 (x, y) EPSG:3857 points: bbox centre + 4 quadrant centres.
-    Quadrant offsets are 25 % of the bbox dimensions (min 10 m) so even tiny
-    parcels get spread coverage."""
+    """Returns 9 (x, y) EPSG:3857 points in a 3×3 grid inset 10 % from each edge.
+    Near-corner sampling is critical for parcels where management zones occupy
+    edge strips (e.g. a road concession in one corner of a large green-space parcel)."""
     minx, miny, maxx, maxy = bbox_3857
-    cx = (minx + maxx) / 2
-    cy = (miny + maxy) / 2
-    ox = max((maxx - minx) * 0.25, 10.0)
-    oy = max((maxy - miny) * 0.25, 10.0)
-    return [
-        (cx,       cy      ),
-        (cx - ox,  cy + oy ),
-        (cx + ox,  cy + oy ),
-        (cx - ox,  cy - oy ),
-        (cx + ox,  cy - oy ),
-    ]
+    w = max(maxx - minx, 20.0)
+    h = max(maxy - miny, 20.0)
+    inset = 0.10
+    xs = [minx + inset * w, (minx + maxx) / 2, maxx - inset * w]
+    ys = [miny + inset * h, (miny + maxy) / 2, maxy - inset * h]
+    return [(x, y) for y in reversed(ys) for x in xs]
 
 
 def _mgmt_query_point(layer: str, px: float, py: float,

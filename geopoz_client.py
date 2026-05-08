@@ -4,12 +4,19 @@ import math
 import os
 import re
 import threading
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import requests
 
 GEOSERVER  = 'https://wms2.geopoz.poznan.pl/geoserver/egib/ows'
 PORTAL_WMS = 'https://portal.geopoz.poznan.pl/wmsegib'
+MGMT_WMS   = 'https://sipuslugiogc1.geopoz.poznan.pl/gospodarka_nieruchomosciami/Service.svc/get'
+
+
+@dataclass
+class PowierzenieEntry:
+    opis: str               # manager display name
+    sygnatura: str | None = None  # concession number; None when sourced from live API
 
 
 @dataclass
@@ -22,12 +29,8 @@ class ParcelAttributes:
     adres: str        # ADRES_DZIALKI
     klasouzytki: str  # KLASOUZYTKI_EGIB from portal.geopoz.poznan.pl; '' if unavailable
     geometry: dict | None  # GeoJSON geometry from WFS, or None if WFS fails
-
-
-@dataclass
-class PowierzenieEntry:
-    opis: str      # manager display name from OPIS column
-    sygnatura: str  # concession number from SYGNATURA column
+    pow_entries: list = field(default_factory=list)  # list[PowierzenieEntry] from live API
+    tz_entries: list  = field(default_factory=list)  # list[TrwalyZarzadEntry] from live API
 
 
 @dataclass
@@ -85,6 +88,13 @@ def _coords_to_epsg2177(lon: float, lat: float) -> tuple[float, float]:
          + dl**6/720 * math.cos(phi)**6 * (61 - 58*t**2 + t**4))))
 
     return FE + x, FN + y
+
+
+def _coords_to_epsg3857(lon: float, lat: float) -> tuple[float, float]:
+    """WGS84 → EPSG:3857 (Web Mercator). Used for gospodarka_nieruchomościami WMS queries."""
+    x = lon * 20_037_508.34 / 180
+    y = math.log(math.tan((90 + lat) * math.pi / 360)) * 20_037_508.34 / math.pi
+    return x, y
 
 
 def _normalize_ozn_dz(ozn: str) -> str:
@@ -187,6 +197,83 @@ def _load_trwaly_zarzad() -> tuple[dict, TrwalyZarzadMeta]:
 _TRWALY_ZARZAD, _TRWALY_ZARZAD_META = _load_trwaly_zarzad()
 
 
+def _fetch_trwaly_zarzad(lat: float, lon: float, ozn_dz: str) -> list:
+    """Live GetFeatureInfo query against the Trwały_zarząd WMS layer.
+    Returns [] on any error so the caller falls through to WLAD-based logic."""
+    try:
+        x, y = _coords_to_epsg3857(lon, lat)
+        margin = 500
+        params = {
+            'SERVICE': 'WMS', 'VERSION': '1.3.0', 'REQUEST': 'GetFeatureInfo',
+            'LAYERS': 'Trwały_zarząd', 'QUERY_LAYERS': 'Trwały_zarząd',
+            'STYLES': '', 'INFO_FORMAT': 'application/geo+json', 'FEATURE_COUNT': '5',
+            'CRS': 'EPSG:3857',
+            'BBOX': f'{x - margin},{y - margin},{x + margin},{y + margin}',
+            'WIDTH': 101, 'HEIGHT': 101, 'I': 50, 'J': 50,
+        }
+        r = requests.get(MGMT_WMS, params=params, timeout=5)
+        if r.status_code != 200:
+            return []
+        normalized = _normalize_ozn_dz(ozn_dz)
+        results = []
+        for feature in r.json().get('features', []):
+            props = feature.get('properties', {})
+            if _normalize_ozn_dz(props.get('Numer działki', '')) == normalized:
+                results.append(TrwalyZarzadEntry(
+                    jednostka=props.get('Zarządca', ''),
+                    data_ustanowienia='',
+                ))
+        return results
+    except Exception as e:
+        print(f'[MGMT TZ] exception: {e}')
+        return []
+
+
+def _fetch_powierzenia_live(lat: float, lon: float, ozn_dz: str) -> list:
+    """Live GetFeatureInfo query against the Powierzenia WMS layer.
+    Returns [] on any error so the caller falls through to WLAD-based logic."""
+    try:
+        x, y = _coords_to_epsg3857(lon, lat)
+        margin = 500
+        params = {
+            'SERVICE': 'WMS', 'VERSION': '1.3.0', 'REQUEST': 'GetFeatureInfo',
+            'LAYERS': 'Powierzenia', 'QUERY_LAYERS': 'Powierzenia',
+            'STYLES': '', 'INFO_FORMAT': 'application/geo+json', 'FEATURE_COUNT': '5',
+            'CRS': 'EPSG:3857',
+            'BBOX': f'{x - margin},{y - margin},{x + margin},{y + margin}',
+            'WIDTH': 101, 'HEIGHT': 101, 'I': 50, 'J': 50,
+        }
+        r = requests.get(MGMT_WMS, params=params, timeout=5)
+        if r.status_code != 200:
+            return []
+        normalized = _normalize_ozn_dz(ozn_dz)
+        results = []
+        for feature in r.json().get('features', []):
+            props = feature.get('properties', {})
+            if _normalize_ozn_dz(props.get('Numer działki', '')) == normalized:
+                results.append(PowierzenieEntry(
+                    opis=props.get('Powierzono', ''),
+                    sygnatura=None,
+                ))
+        return results
+    except Exception as e:
+        print(f'[MGMT POW] exception: {e}')
+        return []
+
+
+def _overlay_xlsx_sygnatura(api_entries: list, ozn_dz: str) -> list:
+    """If the XLSX file is present and has an entry for this parcel, copy the
+    sygnatura onto matching API entries. Falls back gracefully when XLSX is absent."""
+    xlsx = _POWIERZENIA.get(_normalize_ozn_dz(ozn_dz), [])
+    if not xlsx:
+        return api_entries
+    syg_map = {e.opis: e.sygnatura for e in xlsx if e.sygnatura}
+    for entry in api_entries:
+        if entry.sygnatura is None and entry.opis in syg_map:
+            entry.sygnatura = syg_map[entry.opis]
+    return api_entries
+
+
 def _fetch_klasouzytki(easting: float, northing: float) -> str:
     try:
         delta = 100
@@ -266,6 +353,9 @@ def get_parcel_info(lat: float, lon: float) -> tuple[ParcelAttributes | None, st
 
     geometry: dict | None = None
     klasouzytki: str = ''
+    pow_entries: list = []
+    tz_entries: list = []
+    ozn_dz_raw: str = (p.get('OZN_DZ') or '')
 
     def _wfs():
         nonlocal geometry
@@ -289,13 +379,28 @@ def get_parcel_info(lat: float, lon: float) -> tuple[ParcelAttributes | None, st
         nonlocal klasouzytki
         klasouzytki = _fetch_klasouzytki(easting, northing)
 
-    t_wfs  = threading.Thread(target=_wfs)
-    t_klas = threading.Thread(target=_klas)
-    t_wfs.start(); t_klas.start()
-    t_wfs.join();  t_klas.join()
+    def _tz():
+        nonlocal tz_entries
+        tz_entries = _fetch_trwaly_zarzad(lat, lon, ozn_dz_raw)
+
+    def _pow():
+        nonlocal pow_entries
+        entries = _fetch_powierzenia_live(lat, lon, ozn_dz_raw)
+        pow_entries = _overlay_xlsx_sygnatura(entries, ozn_dz_raw)
+
+    threads = [
+        threading.Thread(target=_wfs),
+        threading.Thread(target=_klas),
+        threading.Thread(target=_tz),
+        threading.Thread(target=_pow),
+    ]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
 
     attrs = ParcelAttributes(
-        ozn_dz=(p.get('OZN_DZ') or ''),
+        ozn_dz=ozn_dz_raw,
         nrd=(p.get('NRD') or ''),
         wlasc=(p.get('WLASC') or '').strip().rstrip(','),
         wlad=(p.get('WLAD') or '').strip().lstrip('- ').rstrip(','),
@@ -303,6 +408,8 @@ def get_parcel_info(lat: float, lon: float) -> tuple[ParcelAttributes | None, st
         adres=(p.get('ADRES_DZIALKI') or ''),
         klasouzytki=klasouzytki,
         geometry=geometry,
+        pow_entries=pow_entries,
+        tz_entries=tz_entries,
     )
     return attrs, None
 
@@ -394,21 +501,11 @@ def get_parcel_info_by_ozn(ozn_dz: str) -> tuple[ParcelAttributes | None, str | 
     return get_parcel_info(lat, lon)
 
 
-def get_powierzenia(ozn_dz: str) -> list[PowierzenieEntry]:
-    """Looks up ozn_dz in the in-memory POWIERZENIA dict loaded at startup."""
-    return _POWIERZENIA.get(_normalize_ozn_dz(ozn_dz), [])
-
-
 def get_powierzenia_meta() -> PowierzeniesMeta:
-    """Returns date and record count for footer display in the UI."""
+    """Returns XLSX file date and record count for footer display; None values when file absent."""
     return _POWIERZENIA_META
 
 
-def get_trwaly_zarzad(ozn_dz: str) -> list[TrwalyZarzadEntry]:
-    """Looks up ozn_dz in the in-memory TRWALY_ZARZAD dict loaded at startup."""
-    return _TRWALY_ZARZAD.get(_normalize_ozn_dz(ozn_dz), [])
-
-
 def get_trwaly_zarzad_meta() -> TrwalyZarzadMeta:
-    """Returns date and record count for the trwały zarząd data source."""
+    """Returns CSV file date and record count; None values when file absent."""
     return _TRWALY_ZARZAD_META

@@ -1,5 +1,26 @@
 # Changelog
 
+## v1.5.0 — 2026-05-08
+
+### Changed
+- Management data (`trwały zarząd`, `powierzenia`) now sourced from the live GEOPOZ `gospodarka_nieruchomościami` WMS API instead of static XLSX/CSV files. Both management queries run concurrently with the existing WFS geometry and klasouzytki fetches — no added latency.
+- `PowierzenieEntry.sygnatura` is now `Optional[str]` (defaults to `None` when sourced from the API). The XLSX file, if present in `data/`, is used only to overlay sygnatura onto matching API entries.
+- `ParcelAttributes` now carries `pow_entries` and `tz_entries` directly; `server.py` no longer performs separate dict lookups after the parcel fetch.
+
+### Added
+- `_fetch_trwaly_zarzad(lat, lon, ozn_dz)` — live `GetFeatureInfo` against the `Trwały_zarząd` WMS layer; matches by `Numer działki`, maps `Zarządca` → `TrwalyZarzadEntry.jednostka`
+- `_fetch_powierzenia_live(lat, lon, ozn_dz)` — live `GetFeatureInfo` against the `Powierzenia` layer; maps `Powierzono` → `PowierzenieEntry.opis`
+- `_overlay_xlsx_sygnatura()` — enriches API `pow_entries` with sygnatura values from XLSX when names match; no-op if XLSX is absent
+- `_coords_to_epsg3857()` — WGS84 → Web Mercator helper for the management WMS BBOX
+
+### Removed
+- Public `get_powierzenia(ozn_dz)` and `get_trwaly_zarzad(ozn_dz)` dict-lookup functions (no longer called; XLSX/CSV used only for sygnatura overlay and footer metadata)
+
+### Infrastructure
+- `data/powierzenia-*.xlsx` and `data/trwaly-zarzad-*.csv` are now optional. App works fully without them; XLSX presence adds sygnatura values; CSV metadata (date, count) still shown in footer if file exists.
+
+---
+
 ## v1.4.0 — 2026-05-08
 
 ### Changed

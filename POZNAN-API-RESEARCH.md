@@ -123,3 +123,140 @@ Add `03/06/1/7` to `powierzenia-YYYY-MM-DD.xlsx` with `opis = "Zarząd Zieleni M
 
 ### B — GUGIK spatial intersection (future feature)
 Query `uldk.gugik.gov.pl` for parcel geometry, then do a spatial intersection against ZZM park polygons from the `class_objects` endpoint. The GUGIK full parcel ID would be `306401_1.0306.1/7` (Poznań TERYT prefix + obręb 0306 + parcel 1/7). See ROADMAP for the planned feature.
+
+---
+
+# Gospodarka Nieruchomościami WMS — Live Management Data
+
+**Date:** 2026-05-08  
+**Goal:** Replace static XLSX/CSV files with live API queries for `trwały zarząd` and `powierzenia`.
+
+---
+
+## Endpoint
+
+```
+https://sipuslugiogc1.geopoz.poznan.pl/gospodarka_nieruchomosciami/Service.svc/get
+```
+
+**Protocol:** WMS only (WFS rejected — `"Value provided for a parameter service is invalid"`).  
+**Spatial extent (EPSG:3857):** `1844444, 6849028 → 1921462, 6897587`
+
+---
+
+## Layers
+
+All three layers have `queryable="1"` and support `GetFeatureInfo`.
+
+| Layer name | Meaning |
+|---|---|
+| `Trwały_zarząd` | Permanent management (Art. 43 UGN) |
+| `Powierzenia` | Entrusted management |
+| `Służebności` | Easements / servitudes |
+
+Supported CRS: `EPSG:2177`, `EPSG:2180`, `EPSG:3857`, `EPSG:9707`
+
+---
+
+## GetFeatureInfo — confirmed working request
+
+```
+GET .../get?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetFeatureInfo
+  &QUERY_LAYERS=Trwały_zarząd
+  &LAYERS=Trwały_zarząd
+  &INFO_FORMAT=application/geo+json
+  &I=50&J=50
+  &WIDTH=101&HEIGHT=101
+  &CRS=EPSG:3857
+  &BBOX=1870000,6860000,1895000,6887000
+  &FEATURE_COUNT=5
+```
+
+**Important:** Use a large BBOX — management zones are sparse. A 25 km² box around Poznań centre works reliably.  
+**URL-encode** the layer name: `Trwa%C5%82y_zarz%C4%85d`, `Powierzenia`.  
+**Supported `INFO_FORMAT` values:** `text/xml`, `text/html`, `application/json`, `application/geo+json`, `application/gml+xml; version=3.1`  
+**`text/plain` is rejected** — returns `InvalidFormat` error.
+
+### Returned attributes — `Trwały_zarząd`
+
+| Field | Example |
+|---|---|
+| `OID` | `76861` |
+| `Numer działki` | `21/09/2/4` |
+| `Zarządca` | `Szkoła Podstawowa Specjalna nr 106` |
+
+### Returned attributes — `Powierzenia`
+
+| Field | Example |
+|---|---|
+| `OBJECTID` | `134675` |
+| `Numer działki` | `51/08/15/23` |
+| `Powierzono` | `Zarząd Zieleni Miejskiej` |
+| `JED_POW` | `zzm` (unit code abbreviation) |
+| `Działka historyczna` | `Nie` |
+
+**Geometry is NOT returned** in GetFeatureInfo responses — attributes only.
+
+---
+
+## EGiB WFS — parcel geometry by parcel number
+
+To get the polygon for a parcel returned by the management layer:
+
+**Endpoint:** `https://sipuslugiogc1.geopoz.poznan.pl/WFS_SIP_EWIDENCJA/service.svc/get`  
+**Feature type:** `gmgml:Działki_ewidencyjne`
+
+### Parcel ID format
+
+| EGiB field | Format | Example |
+|---|---|---|
+| `OZN_DZ` | `obręb/arkusz/numer` | `21/09/2/4` |
+| `IDENTYFIKATOR_DZIAŁKI` | `XXXX.AR_YY.ZZZ` | `0021.AR_09.2/4` |
+
+`OZN_DZ` matches `Numer działki` from the management layer directly.  
+`OID` also matches between both services (confirmed: OID=76861 appears in both Trwały_zarząd GetFeatureInfo and the EGiB WFS for `21/09/2/4`).
+
+### Working filter syntax — OGC XML Filter (WFS 1.1.0)
+
+```
+GET .../service.svc/get?SERVICE=WFS&VERSION=1.1.0&REQUEST=GetFeature
+  &TYPENAME=gmgml:Dzia%C5%82ki_ewidencyjne
+  &MAXFEATURES=1
+  &outputFormat=application/geo%2Bjson
+  &FILTER=<Filter xmlns="http://www.opengis.net/ogc">
+    <PropertyIsEqualTo>
+      <PropertyName>OZN_DZ</PropertyName>
+      <Literal>21/09/2/4</Literal>
+    </PropertyIsEqualTo>
+  </Filter>
+```
+
+URL-encode the FILTER value before sending.
+
+**`CQL_FILTER` does NOT work** — silently ignored regardless of quote style; always returns the first record.  
+**WFS 2.0.0 `COUNT` parameter returns 400** — use WFS 1.1.0 with `MAXFEATURES`.  
+**Output format for GeoJSON:** `application/geo%2Bjson` (URL-encoded `+`).
+
+---
+
+## Recommended data flow
+
+```
+1. GetFeatureInfo on Trwały_zarząd / Powierzenia (large BBOX around parcel centroid)
+   → returns: Numer działki + Zarządca / Powierzono
+
+2. GetFeature on gmgml:Działki_ewidencyjne filtered by OZN_DZ = <Numer działki>
+   → returns: polygon geometry in EPSG:2177
+
+3. Join on OZN_DZ / OID to display the manager with the correct parcel outline
+```
+
+---
+
+## Impact on decision tree (ZARZADCA-LOGIC.md)
+
+| Branch | Current behaviour | With live API |
+|---|---|---|
+| 1/2 (XLSX Powierzenia) | Reads static XLSX | Replace with Powierzenia GetFeatureInfo |
+| 7b (SP + Trwały zarząd) | Shows generic "jednostka państwowa lub miejska" | Can show actual `Zarządca` name |
+| 13 (MP + Trwały zarząd) | Shows generic "jednostki miejskiej" | Can show actual `Zarządca` name |

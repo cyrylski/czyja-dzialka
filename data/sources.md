@@ -32,6 +32,23 @@ Drop updated files here with today's date in the filename. The app picks up the 
 No files needed. Called per request from `geopoz_client.py`.  
 Endpoints: WMS GetFeatureInfo, WFS GetFeature, Portal WMS (land use class).
 
+### 3a. Gospodarka Nieruchomościami WMS (live — primary source for management data)
+
+```
+https://sipuslugiogc1.geopoz.poznan.pl/gospodarka_nieruchomosciami/Service.svc/get
+```
+
+Layers queried per request via `GetFeatureInfo` (EPSG:3857, ±500 m BBOX around parcel centroid):
+
+| Layer | Fields returned | Maps to |
+|---|---|---|
+| `Trwały_zarząd` | `Numer działki`, `Zarządca` | `TrwalyZarzadEntry.jednostka` |
+| `Powierzenia` | `Numer działki`, `Powierzono`, `JED_POW` | `PowierzenieEntry.opis` |
+
+**Note:** The API does not return `sygnatura`. If a `powierzenia-*.xlsx` file is present
+in this directory, its sygnatura values are overlaid onto matching API entries
+(see `_overlay_xlsx_sygnatura()` in `geopoz_client.py`).
+
 ---
 
 ## Future: auto-refresh script

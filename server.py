@@ -16,7 +16,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 import geopoz_client
 import parcel_analyzer
 
-APP_VERSION = 'v1.4.0'
+APP_VERSION = 'v1.5.0'
 APP_UPDATE_DATE = '2026-05-08'
 
 app = Flask(__name__, static_folder='.')
@@ -151,11 +151,10 @@ def dzialka():
     if attrs is None:
         return jsonify({'error': 'Nie znaleziono dzialki w tym miejscu'})
 
-    pow_entries = geopoz_client.get_powierzenia(attrs.ozn_dz)
-    meta        = geopoz_client.get_powierzenia_meta()
-    tz_entries  = geopoz_client.get_trwaly_zarzad(attrs.ozn_dz)
-    tz_meta     = geopoz_client.get_trwaly_zarzad_meta()
-    scenario    = parcel_analyzer.analyze_parcel(attrs, pow_entries, meta, tz_entries, tz_meta)
+    scenario = parcel_analyzer.analyze_parcel(
+        attrs, attrs.pow_entries, geopoz_client.get_powierzenia_meta(),
+        attrs.tz_entries, geopoz_client.get_trwaly_zarzad_meta(),
+    )
 
     _log_dzialka(scenario.ozn_dz, source='map')
 
@@ -175,11 +174,10 @@ def dzialka_by_ozn():
     if attrs is None:
         return jsonify({'error': 'Użyty adres działki jest niepoprawny'}), 404
 
-    pow_entries = geopoz_client.get_powierzenia(attrs.ozn_dz)
-    meta        = geopoz_client.get_powierzenia_meta()
-    tz_entries  = geopoz_client.get_trwaly_zarzad(attrs.ozn_dz)
-    tz_meta     = geopoz_client.get_trwaly_zarzad_meta()
-    scenario    = parcel_analyzer.analyze_parcel(attrs, pow_entries, meta, tz_entries, tz_meta)
+    scenario = parcel_analyzer.analyze_parcel(
+        attrs, attrs.pow_entries, geopoz_client.get_powierzenia_meta(),
+        attrs.tz_entries, geopoz_client.get_trwaly_zarzad_meta(),
+    )
 
     _log_dzialka(scenario.ozn_dz, source='share')
 

@@ -1,5 +1,24 @@
 # Changelog
 
+## v1.6.0 — 2026-05-08
+
+### Added
+- Multi-point management zone sampling: `_fetch_powierzenia_live()` and `_fetch_trwaly_zarzad()` now sample 5 points across the parcel's bounding box (centre + NW/NE/SW/SE quadrant centres, offset 25 % of bbox dimensions) rather than a single centroid pixel. Parcels with multiple management zones (e.g. `04/16/93/11` — ZZM + ZDM) now return all managers in `pow_entries`/`tz_entries`.
+- `_bbox_epsg3857_from_geometry()` — converts the WFS GeoJSON polygon to an EPSG:3857 bounding box used for sample point placement.
+- `_sample_points_for_bbox()` — generates the 5-point sampling grid from the bbox.
+- `_mgmt_query_point()` — single-point GetFeatureInfo helper shared by both fetchers.
+- Management zone WMS overlay in the Leaflet map: when a parcel with `pow_entries` or `tz_entries` is selected, a semi-transparent `Powierzenia`/`Trwały_zarząd` WMS layer (opacity 0.55) is added to the map, showing colour-coded management zones. The overlay is removed when the selection changes or is cleared.
+
+### Changed
+- `_fetch_trwaly_zarzad()` and `_fetch_powierzenia_live()` accept an optional `bbox_3857` parameter; fall back to single-centroid query when absent.
+- In `get_parcel_info()`, `_tz` and `_pow` threads now wait on a `threading.Event` set by `_wfs` after the geometry is fetched, so management fetchers can use the parcel bbox. All 4 threads still start concurrently; management fetchers block only until WFS resolves (typically < 400 ms).
+- BBOX margin per sample point reduced from 500 m to 200 m (tighter, matching the ~100 m scale of management zone features).
+
+### Research
+- Confirmed via GEOPOZ SIP portal browser inspection that management zone vector geometries are **not available via any API** — the WMS renders colored polygons server-side as PNG tiles; GetFeatureInfo returns attributes only. See `POZNAN-API-RESEARCH.md` for the full investigation notes.
+
+---
+
 ## v1.5.0 — 2026-05-08
 
 ### Changed

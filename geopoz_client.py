@@ -197,65 +197,153 @@ def _load_trwaly_zarzad() -> tuple[dict, TrwalyZarzadMeta]:
 _TRWALY_ZARZAD, _TRWALY_ZARZAD_META = _load_trwaly_zarzad()
 
 
-def _fetch_trwaly_zarzad(lat: float, lon: float, ozn_dz: str) -> list:
-    """Live GetFeatureInfo query against the Trwały_zarząd WMS layer.
-    Returns [] on any error so the caller falls through to WLAD-based logic."""
+def _bbox_epsg3857_from_geometry(geometry: dict) -> tuple[float, float, float, float] | None:
+    """Returns (minx, miny, maxx, maxy) in EPSG:3857 from a WGS84 GeoJSON geometry."""
+    if not geometry:
+        return None
+    gtype = geometry.get('type')
+    coords = geometry.get('coordinates', [])
+    if gtype == 'Polygon':
+        rings = coords
+    elif gtype == 'MultiPolygon':
+        rings = [ring for poly in coords for ring in poly]
+    else:
+        return None
+    all_xy = []
+    for ring in rings:
+        for pt in ring:
+            all_xy.append(_coords_to_epsg3857(pt[0], pt[1]))
+    if not all_xy:
+        return None
+    return (min(p[0] for p in all_xy), min(p[1] for p in all_xy),
+            max(p[0] for p in all_xy), max(p[1] for p in all_xy))
+
+
+def _sample_points_for_bbox(bbox_3857: tuple) -> list[tuple[float, float]]:
+    """Returns 5 (x, y) EPSG:3857 points: bbox centre + 4 quadrant centres.
+    Quadrant offsets are 25 % of the bbox dimensions (min 10 m) so even tiny
+    parcels get spread coverage."""
+    minx, miny, maxx, maxy = bbox_3857
+    cx = (minx + maxx) / 2
+    cy = (miny + maxy) / 2
+    ox = max((maxx - minx) * 0.25, 10.0)
+    oy = max((maxy - miny) * 0.25, 10.0)
+    return [
+        (cx,       cy      ),
+        (cx - ox,  cy + oy ),
+        (cx + ox,  cy + oy ),
+        (cx - ox,  cy - oy ),
+        (cx + ox,  cy - oy ),
+    ]
+
+
+def _mgmt_query_point(layer: str, px: float, py: float,
+                      normalized_ozn: str, entry_factory) -> list:
+    """Single GetFeatureInfo call at EPSG:3857 point (px, py). Returns matching entries."""
+    margin = 200
+    params = {
+        'SERVICE': 'WMS', 'VERSION': '1.3.0', 'REQUEST': 'GetFeatureInfo',
+        'LAYERS': layer, 'QUERY_LAYERS': layer,
+        'STYLES': '', 'INFO_FORMAT': 'application/geo+json', 'FEATURE_COUNT': '5',
+        'CRS': 'EPSG:3857',
+        'BBOX': f'{px - margin},{py - margin},{px + margin},{py + margin}',
+        'WIDTH': 101, 'HEIGHT': 101, 'I': 50, 'J': 50,
+    }
+    r = requests.get(MGMT_WMS, params=params, timeout=6)
+    if r.status_code != 200:
+        return []
+    results = []
+    for feature in r.json().get('features', []):
+        props = feature.get('properties', {})
+        if _normalize_ozn_dz(props.get('Numer działki', '')) == normalized_ozn:
+            entry = entry_factory(props)
+            if entry is not None:
+                results.append(entry)
+    return results
+
+
+def _fetch_trwaly_zarzad(lat: float, lon: float, ozn_dz: str,
+                         bbox_3857: tuple | None = None) -> list:
+    """Multi-point GetFeatureInfo against the Trwały_zarząd layer.
+    Samples 5 points across the parcel bbox (if available) to detect all TZ zones.
+    Returns [] on any error."""
     try:
-        x, y = _coords_to_epsg3857(lon, lat)
-        margin = 500
-        params = {
-            'SERVICE': 'WMS', 'VERSION': '1.3.0', 'REQUEST': 'GetFeatureInfo',
-            'LAYERS': 'Trwały_zarząd', 'QUERY_LAYERS': 'Trwały_zarząd',
-            'STYLES': '', 'INFO_FORMAT': 'application/geo+json', 'FEATURE_COUNT': '5',
-            'CRS': 'EPSG:3857',
-            'BBOX': f'{x - margin},{y - margin},{x + margin},{y + margin}',
-            'WIDTH': 101, 'HEIGHT': 101, 'I': 50, 'J': 50,
-        }
-        r = requests.get(MGMT_WMS, params=params, timeout=5)
-        if r.status_code != 200:
-            return []
         normalized = _normalize_ozn_dz(ozn_dz)
-        results = []
-        for feature in r.json().get('features', []):
-            props = feature.get('properties', {})
-            if _normalize_ozn_dz(props.get('Numer działki', '')) == normalized:
-                results.append(TrwalyZarzadEntry(
-                    jednostka=props.get('Zarządca', ''),
-                    data_ustanowienia='',
-                ))
-        return results
+        cx, cy = _coords_to_epsg3857(lon, lat)
+        points = _sample_points_for_bbox(bbox_3857) if bbox_3857 else [(cx, cy)]
+
+        def factory(props):
+            return TrwalyZarzadEntry(jednostka=props.get('Zarządca', ''),
+                                     data_ustanowienia='')
+
+        results: list = [None] * len(points)
+
+        def _q(idx, px, py):
+            try:
+                results[idx] = _mgmt_query_point('Trwały_zarząd', px, py, normalized, factory)
+            except Exception as e:
+                print(f'[MGMT TZ pt{idx}] {e}')
+                results[idx] = []
+
+        threads = [threading.Thread(target=_q, args=(i, px, py))
+                   for i, (px, py) in enumerate(points)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        seen: set = set()
+        unique: list = []
+        for batch in results:
+            for entry in (batch or []):
+                key = entry.jednostka.strip()
+                if key and key not in seen:
+                    seen.add(key)
+                    unique.append(entry)
+        return unique
     except Exception as e:
         print(f'[MGMT TZ] exception: {e}')
         return []
 
 
-def _fetch_powierzenia_live(lat: float, lon: float, ozn_dz: str) -> list:
-    """Live GetFeatureInfo query against the Powierzenia WMS layer.
-    Returns [] on any error so the caller falls through to WLAD-based logic."""
+def _fetch_powierzenia_live(lat: float, lon: float, ozn_dz: str,
+                            bbox_3857: tuple | None = None) -> list:
+    """Multi-point GetFeatureInfo against the Powierzenia layer.
+    Samples 5 points across the parcel bbox (if available) to detect all management zones.
+    Returns [] on any error."""
     try:
-        x, y = _coords_to_epsg3857(lon, lat)
-        margin = 500
-        params = {
-            'SERVICE': 'WMS', 'VERSION': '1.3.0', 'REQUEST': 'GetFeatureInfo',
-            'LAYERS': 'Powierzenia', 'QUERY_LAYERS': 'Powierzenia',
-            'STYLES': '', 'INFO_FORMAT': 'application/geo+json', 'FEATURE_COUNT': '5',
-            'CRS': 'EPSG:3857',
-            'BBOX': f'{x - margin},{y - margin},{x + margin},{y + margin}',
-            'WIDTH': 101, 'HEIGHT': 101, 'I': 50, 'J': 50,
-        }
-        r = requests.get(MGMT_WMS, params=params, timeout=5)
-        if r.status_code != 200:
-            return []
         normalized = _normalize_ozn_dz(ozn_dz)
-        results = []
-        for feature in r.json().get('features', []):
-            props = feature.get('properties', {})
-            if _normalize_ozn_dz(props.get('Numer działki', '')) == normalized:
-                results.append(PowierzenieEntry(
-                    opis=props.get('Powierzono', ''),
-                    sygnatura=None,
-                ))
-        return results
+        cx, cy = _coords_to_epsg3857(lon, lat)
+        points = _sample_points_for_bbox(bbox_3857) if bbox_3857 else [(cx, cy)]
+
+        def factory(props):
+            return PowierzenieEntry(opis=props.get('Powierzono', ''), sygnatura=None)
+
+        results: list = [None] * len(points)
+
+        def _q(idx, px, py):
+            try:
+                results[idx] = _mgmt_query_point('Powierzenia', px, py, normalized, factory)
+            except Exception as e:
+                print(f'[MGMT POW pt{idx}] {e}')
+                results[idx] = []
+
+        threads = [threading.Thread(target=_q, args=(i, px, py))
+                   for i, (px, py) in enumerate(points)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        seen: set = set()
+        unique: list = []
+        for batch in results:
+            for entry in (batch or []):
+                key = entry.opis.strip()
+                if key and key not in seen:
+                    seen.add(key)
+                    unique.append(entry)
+        return unique
     except Exception as e:
         print(f'[MGMT POW] exception: {e}')
         return []
@@ -357,6 +445,10 @@ def get_parcel_info(lat: float, lon: float) -> tuple[ParcelAttributes | None, st
     tz_entries: list = []
     ozn_dz_raw: str = (p.get('OZN_DZ') or '')
 
+    # Management fetchers wait for the WFS geometry so they can sample the full parcel bbox.
+    _geo_ready = threading.Event()
+    _bbox_holder: list = [None]  # [tuple | None]
+
     def _wfs():
         nonlocal geometry
         try:
@@ -372,8 +464,11 @@ def get_parcel_info(lat: float, lon: float) -> tuple[ParcelAttributes | None, st
                 wfs_features = wfs_r.json().get('features', [])
                 if wfs_features:
                     geometry = wfs_features[0].get('geometry')
+                    _bbox_holder[0] = _bbox_epsg3857_from_geometry(geometry)
         except Exception as e:
             print(f'[WFS] exception: {e}')
+        finally:
+            _geo_ready.set()
 
     def _klas():
         nonlocal klasouzytki
@@ -381,11 +476,13 @@ def get_parcel_info(lat: float, lon: float) -> tuple[ParcelAttributes | None, st
 
     def _tz():
         nonlocal tz_entries
-        tz_entries = _fetch_trwaly_zarzad(lat, lon, ozn_dz_raw)
+        _geo_ready.wait(timeout=10)
+        tz_entries = _fetch_trwaly_zarzad(lat, lon, ozn_dz_raw, _bbox_holder[0])
 
     def _pow():
         nonlocal pow_entries
-        entries = _fetch_powierzenia_live(lat, lon, ozn_dz_raw)
+        _geo_ready.wait(timeout=10)
+        entries = _fetch_powierzenia_live(lat, lon, ozn_dz_raw, _bbox_holder[0])
         pow_entries = _overlay_xlsx_sygnatura(entries, ozn_dz_raw)
 
     threads = [

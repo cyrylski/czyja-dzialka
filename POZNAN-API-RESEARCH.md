@@ -257,6 +257,102 @@ URL-encode the FILTER value before sending.
 
 | Branch | Current behaviour | With live API |
 |---|---|---|
+
+---
+
+# Sub-parcel Management Zone Visualization — Browser Investigation
+
+**Date:** 2026-05-08  
+**Goal:** Determine whether vector polygon geometries for individual management zones are
+accessible, enabling colored sub-parcel overlays in Leaflet.
+
+---
+
+## Method
+
+Enabled the `Powierzenia` layer in the GEOPOZ SIP portal
+(`sipmapy.geopoz.poznan.pl`) via its ExtJS tree. Used the identify tool to click on
+individual zones within parcel `04/16/93/11`. Monitored Chrome DevTools network tab.
+
+---
+
+## Confirmed findings
+
+| Finding | Detail |
+|---|---|
+| Rendering mechanism | WMS **raster tiles** (GetMap PNG, EPSG:2177) — zones are server-rendered |
+| Identify mechanism | Portal-internal `POST /sipportal/api/stateful/featureInfo` |
+| GetFeatureInfo geometry | **NOT returned** in any format (text/xml, GML, geo+json) — attributes only |
+| WFS equivalent | **Does not exist** — only WMS is published for this service |
+| `FEATURE_COUNT` parameter | Controls overlapping features at the queried pixel, not all features within BBOX |
+| Green zone click → | `Numer działki=04/16/93/11`, `Powierzono=Zarząd Zieleni Miejskiej` |
+| Uncoloured zone click → | Only "Działki" tab shown — no Powierzenia entry (unmanaged area) |
+
+---
+
+## Style legend (Powierzenia layer)
+
+Colors observed in the SIP portal style picker:
+
+| Colour | Manager |
+|---|---|
+| Green | Zarząd Zieleni Miejskiej |
+| Blue | Zarząd Dróg Miejskich |
+| Pink | Zarząd Transportu Miejskiego |
+| Orange | Usługi Komunalne |
+| Purple | Zakład Lasów Poznańskich |
+| Yellow | Poznańskie Ośrodki Sportu i Rekreacji, Zgoda |
+
+---
+
+## Conclusion: no vector geometries available
+
+The management zone polygons exist on the WMS server and are rendered as colored PNG tiles,
+but no API surface exposes them as vector data:
+
+1. **No WFS** — `GetCapabilities` returns WMS-only; WFS requests return `InvalidParameter`
+2. **GetFeatureInfo returns attributes only** — confirmed in every supported format
+3. **Portal internal API** — uses session tokens; not callable from an external app
+
+---
+
+## Implementation consequence: multi-point sampling
+
+Since a single centroid pixel query misses zones that don't cover the parcel center (e.g.
+the ZDM road strip along the edge of `04/16/93/11`), the app now samples **5 points** across
+the parcel's bounding box:
+
+```
+[ NW ]  [ NE ]
+    [ C ]
+[ SW ]  [ SE ]
+```
+
+Each point is offset 25 % of the bbox dimensions from the centre.  All 5 queries run
+concurrently; results are deduplicated by manager name.  The parcel bbox is derived from
+the WFS EGiB geometry and converted to EPSG:3857 via `_bbox_epsg3857_from_geometry()`.
+
+The management zones are also shown as a semi-transparent **WMS raster overlay** in Leaflet
+(`L.tileLayer.wms` with `Powierzenia` and/or `Trwały_zarząd` layers, opacity 0.55), which
+gives the user a visual indication of which coloured zone belongs to which manager.
+
+---
+
+## Request that triggered the WMS tile (confirmed working)
+
+```
+GET https://sipuslugiogc1.geopoz.poznan.pl/gospodarka_nieruchomosciami/service.svc/get
+  ?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0
+  &LAYERS=Powierzenia
+  &FORMAT=image/png
+  &TRANSPARENT=TRUE
+  &CRS=EPSG:2177
+  &BBOX=5808542...,6427974...,5808815...,6428476...
+  &WIDTH=1793&HEIGHT=977
+  &STYLES=
+```
+
+Response: 200 OK, PNG tile with color-coded management zone polygons.
 | 1/2 (XLSX Powierzenia) | Reads static XLSX | Replace with Powierzenia GetFeatureInfo |
 | 7b (SP + Trwały zarząd) | Shows generic "jednostka państwowa lub miejska" | Can show actual `Zarządca` name |
 | 13 (MP + Trwały zarząd) | Shows generic "jednostki miejskiej" | Can show actual `Zarządca` name |

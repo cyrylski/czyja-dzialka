@@ -1,11 +1,22 @@
 # Changelog
 
+## v1.6.1 — 2026-05-09
+
+### Added
+- Fixed beta-notice bar at the bottom of the panel: blue accent background, white text, two lines (bold disclaimer + mailto contact link in a lighter tint). Replaces the inline footer contact line.
+
+### Changed
+- `.panel-footer` trimmed: removed duplicate "Widzisz błąd?" contact row and the now-redundant `·` separator.
+- Introduced `--color-accent` and `--color-accent-light` CSS custom properties in `index.html` as the start of a proper variable system.
+
+---
+
 ## v1.6.0 — 2026-05-08
 
 ### Added
-- Multi-point management zone sampling: `_fetch_powierzenia_live()` and `_fetch_trwaly_zarzad()` now sample 5 points across the parcel's bounding box (centre + NW/NE/SW/SE quadrant centres, offset 25 % of bbox dimensions) rather than a single centroid pixel. Parcels with multiple management zones (e.g. `04/16/93/11` — ZZM + ZDM) now return all managers in `pow_entries`/`tz_entries`.
+- Multi-point management zone sampling: `_fetch_powierzenia_live()` and `_fetch_trwaly_zarzad()` now sample **9 points in a 3×3 grid** (inset 10 % from each bbox edge) rather than a single centroid pixel. Near-corner points catch edge-confined zones (e.g. the ZDM road strip in the SE corner of `04/16/93/11`) that centroid-only queries miss entirely. Parcels with multiple management zones now return all managers in `pow_entries`/`tz_entries`.
 - `_bbox_epsg3857_from_geometry()` — converts the WFS GeoJSON polygon to an EPSG:3857 bounding box used for sample point placement.
-- `_sample_points_for_bbox()` — generates the 5-point sampling grid from the bbox.
+- `_sample_points_for_bbox()` — generates the 9-point 3×3 grid from the bbox (rows from top-left to bottom-right, ys reversed so row 0 = north).
 - `_mgmt_query_point()` — single-point GetFeatureInfo helper shared by both fetchers.
 - Management zone WMS overlay in the Leaflet map: when a parcel with `pow_entries` or `tz_entries` is selected, a semi-transparent `Powierzenia`/`Trwały_zarząd` WMS layer (opacity 0.55) is added to the map, showing colour-coded management zones. The overlay is removed when the selection changes or is cleared.
 
@@ -13,6 +24,9 @@
 - `_fetch_trwaly_zarzad()` and `_fetch_powierzenia_live()` accept an optional `bbox_3857` parameter; fall back to single-centroid query when absent.
 - In `get_parcel_info()`, `_tz` and `_pow` threads now wait on a `threading.Event` set by `_wfs` after the geometry is fetched, so management fetchers can use the parcel bbox. All 4 threads still start concurrently; management fetchers block only until WFS resolves (typically < 400 ms).
 - BBOX margin per sample point reduced from 500 m to 200 m (tighter, matching the ~100 m scale of management zone features).
+
+### Known limitation
+- Parcels with a city-owned interior not covered by any Powierzenia or Trwały zarząd record (e.g. the uncoloured interior zone of `04/16/93/11`) are de facto managed by **WGN (Wydział Gospodarowania Nieruchomościami)** — the city's residual direct manager for unentrusted properties. This is user-reported and cannot be confirmed via any current API; no Powierzenia/TZ entry exists for such areas by design. If a WGN data export becomes available it can be integrated via the existing `_overlay_xlsx_sygnatura` pattern.
 
 ### Research
 - Confirmed via GEOPOZ SIP portal browser inspection that management zone vector geometries are **not available via any API** — the WMS renders colored polygons server-side as PNG tiles; GetFeatureInfo returns attributes only. See `POZNAN-API-RESEARCH.md` for the full investigation notes.

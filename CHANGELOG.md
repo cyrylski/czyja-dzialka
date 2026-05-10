@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.6.2 — 2026-05-10
+
+### Fixed
+- Parcels recorded in the WGN-authored `powierzenia-*.xlsx` but absent from the live GEOPOZ `Powierzenia` WMS layer no longer fall through to branch `CITY_ZASOB` (→ WGN). When the live API returns zero entries for a parcel, the XLSX entries (with their sygnatura) are now used as a fallback. Example: `04/13/4/436` and `04/13/4/438` are now correctly shown as managed by Zarząd Komunalnych Zasobów Lokalowych (ZKZL) per the XLSX register, instead of WGN as inferred from `WLAD = "Gospodarowanie zasobem"`.
+
+### Changed
+- `_overlay_xlsx_sygnatura()` retains its enrichment role when the live API returns entries; a new `_xlsx_powierzenia_fallback()` handles the empty-API case.
+
+---
+
 ## v1.6.1 — 2026-05-09
 
 ### Added

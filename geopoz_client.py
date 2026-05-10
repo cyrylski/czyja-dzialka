@@ -357,6 +357,15 @@ def _overlay_xlsx_sygnatura(api_entries: list, ozn_dz: str) -> list:
     return api_entries
 
 
+def _xlsx_powierzenia_fallback(ozn_dz: str) -> list:
+    """Returns XLSX entries for a parcel when the live Powierzenia WMS layer has
+    no data for it. The XLSX (authored by WGN) covers thousands of parcels the
+    live layer is missing — without this fallback those parcels get misrouted to
+    branch CITY_ZASOB (→ WGN) even when the XLSX records a specific manager
+    (e.g. ZKZL on 04/13/4/4xx)."""
+    return list(_POWIERZENIA.get(_normalize_ozn_dz(ozn_dz), []))
+
+
 def _fetch_klasouzytki(easting: float, northing: float) -> str:
     try:
         delta = 100
@@ -478,7 +487,10 @@ def get_parcel_info(lat: float, lon: float) -> tuple[ParcelAttributes | None, st
         nonlocal pow_entries
         _geo_ready.wait(timeout=10)
         entries = _fetch_powierzenia_live(lat, lon, ozn_dz_raw, _bbox_holder[0])
-        pow_entries = _overlay_xlsx_sygnatura(entries, ozn_dz_raw)
+        if entries:
+            pow_entries = _overlay_xlsx_sygnatura(entries, ozn_dz_raw)
+        else:
+            pow_entries = _xlsx_powierzenia_fallback(ozn_dz_raw)
 
     threads = [
         threading.Thread(target=_wfs),

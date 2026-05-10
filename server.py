@@ -16,8 +16,8 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 import geopoz_client
 import parcel_analyzer
 
-APP_VERSION = 'v1.6.1'
-APP_UPDATE_DATE = '2026-05-09'
+APP_VERSION = 'v1.6.3'
+APP_UPDATE_DATE = '2026-05-10'
 
 app = Flask(__name__, static_folder='.')
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)

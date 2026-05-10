@@ -184,16 +184,29 @@ will have fired before this branch is reached.
 
 ---
 
-## XLSX powierzenie data
+## Powierzenia data — live API with XLSX fallback
 
-The file `powierzenia-YYYY-MM-DD.xlsx` (loaded at startup by `server.py:load_powierzenia()`)
-is the **primary source** and overrides all inferred logic (branches 1–2 always
-win). It maps `OZN_DZ` → `[{opis, sygnatura}]`.
+Since v1.5.0, `pow_entries` is fetched live from the GEOPOZ `Powierzenia` WMS
+layer (`_fetch_powierzenia_live()` in `geopoz_client.py`). Since v1.6.2, the
+WGN-authored `powierzenia-YYYY-MM-DD.xlsx` is also a fallback source when the
+live layer has no record for the parcel. Combined behaviour:
 
-- Multiple rows for the same parcel → `isMulti = true` → branch 1 (grid view).
-- One row → branch 2 (single manager).
-- The date in the filename is shown in the UI as "Zaktualizowano: YYYY-MM-DD".
-- When the file is missing a parcel that GEOPOZ marks as a road, the app falls
+1. **Live API returns entries** → use them; overlay XLSX `sygnatura` onto
+   matching entries (`_overlay_xlsx_sygnatura()`).
+2. **Live API returns 0 entries** → use XLSX entries verbatim
+   (`_xlsx_powierzenia_fallback()`), including their sygnatura.
+3. **Neither has data** → `pow_entries = []`, decision tree falls through to
+   inferred branches (3+).
+
+Either source feeds the same branches: multiple entries → branch 1
+(`XLSX_MULTI`), single entry → branch 2 (`XLSX_SINGLE`).
+
+- The date in the XLSX filename is shown in the UI as "Zaktualizowano:
+  YYYY-MM-DD" — it bounds how stale the fallback can be.
+- The live API covers multi-zone parcels via 3×3 grid sampling that the XLSX
+  cannot represent (a road strip on one edge + green-space on another). Keep
+  the API path primary for that reason.
+- When the XLSX is missing a parcel that GEOPOZ marks as a road, the app falls
   through to branch 3 or 4 and infers ZDM (correct per Art. 19 ust. 5 UoDP).
 
 ---

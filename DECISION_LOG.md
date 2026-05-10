@@ -240,3 +240,17 @@ Chronological record of significant architectural, product, and infrastructure d
 - `text/plain` as `INFO_FORMAT` is rejected; use `application/geo+json`.
 - EPSG:3857 bbox coordinate origin confirmed: service extent starts at Y≈6,849,028, not the expected ~6,837,000 — off-by-12km was causing empty responses during testing.
 - `OID` field is shared between the management WMS and the EGiB WFS for the same parcel.
+
+---
+
+## 2026-05-10 — XLSX fallback when live Powierzenia WMS returns nothing (v1.6.2)
+
+**Decision:** When the live `Powierzenia` WMS GetFeatureInfo returns zero entries for a parcel, fall back to entries from `powierzenia-*.xlsx` (authored by WGN) for that parcel. The XLSX retains its sygnatura-overlay role when the live API does return entries.
+
+**Problem:** The 2026-05-08 migration (v1.5.0) assumed the live `Powierzenia` layer covers every parcel the XLSX has. It doesn't — the layer is sparser. Parcels like `04/13/4/436` and `04/13/4/438` (and many other ZKZL-managed plots in the same registry block) are absent from the live layer; the XLSX records them with `OPIS = "Zarząd Komunalnych Zasobów Lokalowych"` and a concrete sygnatura. With the old logic, these parcels had `pow_entries: []` and fell through to branch `CITY_ZASOB` → WGN, despite the XLSX having authoritative data. User confirmed they are 100 % managed by ZKZL.
+
+**Rationale:** The "Alternatives not taken: Keep XLSX/CSV as primary" line in the 2026-05-08 entry rejected the manual-refresh burden, but did not anticipate silent data loss from the live layer's gaps. A conservative one-way fallback (XLSX only when API returns 0 entries) restores the missing data without overriding any live API result. Stale-XLSX risk is bounded: if the live layer ever starts reporting a different manager for a parcel that's also in the XLSX, the live answer wins.
+
+**Code:** `_xlsx_powierzenia_fallback()` in `geopoz_client.py`. Used in the `_pow` thread inside `get_parcel_info`.
+
+**Trade-off accepted:** XLSX entries are still as stale as the file date. The "Zaktualizowano" line in the panel footer continues to reflect that date, so users can judge.

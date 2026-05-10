@@ -518,27 +518,94 @@ def get_parcel_info(lat: float, lon: float) -> tuple[ParcelAttributes | None, st
     return attrs, None
 
 
+def _point_in_ring(x: float, y: float, ring: list) -> bool:
+    """Ray-casting point-in-polygon test against a single ring."""
+    inside = False
+    n = len(ring)
+    j = n - 1
+    for i in range(n):
+        xi, yi = ring[i][0], ring[i][1]
+        xj, yj = ring[j][0], ring[j][1]
+        if ((yi > y) != (yj > y)) and (x < (xj - xi) * (y - yi) / ((yj - yi) or 1e-30) + xi):
+            inside = not inside
+        j = i
+    return inside
+
+
+def _point_inside_polygon(x: float, y: float, rings: list) -> bool:
+    """rings[0] = outer; rings[1:] = holes. Point is inside iff inside outer and outside every hole."""
+    if not rings or not _point_in_ring(x, y, rings[0]):
+        return False
+    for hole in rings[1:]:
+        if _point_in_ring(x, y, hole):
+            return False
+    return True
+
+
+def _polygon_interior_point(rings: list) -> tuple[float, float] | None:
+    """Returns a (lon, lat) point guaranteed to be inside a polygon and outside its holes.
+
+    Why this matters: GEOPOZ's WMS GetFeatureInfo is point-based. If the sample point
+    we send falls inside a hole (an interior parcel cut out of this one), the WMS
+    returns attributes for the *neighbour* parcel, not the requested one.
+
+    Strategy: vertex-average first (cheap, works for convex shapes), then horizontal
+    scanline through the centroid Y picking the midpoint of the longest in-polygon
+    segment. Falls back to the first outer vertex only on degenerate input.
+    """
+    if not rings or not rings[0]:
+        return None
+    outer = rings[0]
+
+    sx = sum(p[0] for p in outer) / len(outer)
+    sy = sum(p[1] for p in outer) / len(outer)
+    if _point_inside_polygon(sx, sy, rings):
+        return sx, sy
+
+    xs: list[float] = []
+    for ring in rings:
+        m = len(ring)
+        for i in range(m):
+            x1, y1 = ring[i]
+            x2, y2 = ring[(i + 1) % m]
+            if (y1 > sy) != (y2 > sy):
+                xs.append(x1 + (sy - y1) / ((y2 - y1) or 1e-30) * (x2 - x1))
+    xs.sort()
+    best: tuple[float, float] | None = None
+    best_len = 0.0
+    for i in range(0, len(xs) - 1, 2):
+        a, b = xs[i], xs[i + 1]
+        mid = (a + b) / 2
+        if _point_inside_polygon(mid, sy, rings) and (b - a) > best_len:
+            best = (mid, sy)
+            best_len = b - a
+    if best is not None:
+        return best
+
+    return outer[0][0], outer[0][1]
+
+
 def _polygon_sample_point(geometry: dict) -> tuple[float, float] | None:
-    """Returns a (lon, lat) point near the centre of a Polygon/MultiPolygon
-    suitable for klasouzytki sampling. Falls back to first vertex on degenerate input."""
+    """Returns a (lon, lat) point inside a Polygon/MultiPolygon suitable for downstream
+    WMS GetFeatureInfo lookups. Handles holes correctly — the previous vertex-average
+    implementation could land inside an interior hole and resolve the wrong parcel
+    (e.g. /dzialka/4-13-4-438 resolved to 04/13/4/9 because 438 has a hole). Returns
+    None on degenerate input."""
     if not geometry:
         return None
     coords = geometry.get('coordinates') or []
-    if geometry.get('type') == 'MultiPolygon':
-        if not coords or not coords[0] or not coords[0][0]:
-            return None
-        ring = coords[0][0]
-    elif geometry.get('type') == 'Polygon':
+    gtype = geometry.get('type')
+    if gtype == 'MultiPolygon':
         if not coords or not coords[0]:
             return None
-        ring = coords[0]
+        rings = coords[0]
+    elif gtype == 'Polygon':
+        if not coords:
+            return None
+        rings = coords
     else:
         return None
-    if not ring:
-        return None
-    sx = sum(p[0] for p in ring) / len(ring)
-    sy = sum(p[1] for p in ring) / len(ring)
-    return sx, sy
+    return _polygon_interior_point(rings)
 
 
 def _ozn_cql_variants(ozn_dz: str) -> list[str]:

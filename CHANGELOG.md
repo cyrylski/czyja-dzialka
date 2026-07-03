@@ -1,5 +1,24 @@
 # Changelog
 
+## v1.6.4 — 2026-07-03
+
+### Fixed
+- Analytics digest emails never arrived. The v1.3.0 design sent the buffered-event digest **only** from an `atexit` hook on machine spindown, but on Fly.io that path was effectively dead: `fly.toml` had no `kill_signal`/`kill_timeout`, so Fly sent the default **SIGINT** (gunicorn's *quick*-shutdown signal) and **SIGKILLed the whole VM 5 s later** — less than the SMTP call's own 10 s timeout, so the flush lost the race on every spindown. On top of that every failure mode was silent: missing `LOG_EMAIL_*` env vars made the flush a no-op with no log line, and SMTP/auth errors were logged at WARNING to a machine that was already being killed.
+
+### Changed
+- Digest delivery no longer depends on graceful shutdown. A background thread flushes the buffer every 15 min while events are pending (`LOG_EMAIL_INTERVAL_MIN` to override), or immediately at 800 events (before the 1000-cap deque starts dropping). The `atexit` flush remains as a shutdown backstop.
+- Failed sends put the drained events back at the front of the buffer, so the next cycle retries them instead of losing them.
+- Startup now logs the digest state explicitly: `email digest armed -> <to> …` or `email digest DISABLED — missing env vars: …` — visible via `flyctl logs` as soon as a machine boots.
+- Email subject/body now include the flush reason (`periodic` / `shutdown` / `manual`).
+
+### Added
+- `GET/POST /api/log_status` — owner-only diagnostics endpoint, active only when the new `LOG_STATUS_TOKEN` env var is set and matched (`X-Log-Token` header or `?token=`); otherwise it answers 404. GET returns config state, missing env vars, pending event count, and the last flush result including the exact SMTP error. POST forces a flush (injecting a synthetic test event when the buffer is empty) to verify delivery end-to-end in seconds.
+
+### Infrastructure
+- `fly.toml`: `kill_signal = 'SIGTERM'` (gunicorn graceful shutdown instead of quick) and `kill_timeout = '30s'` so the final flush can complete the SMTP handshake before SIGKILL.
+
+---
+
 ## v1.6.3 — 2026-05-10
 
 ### Fixed

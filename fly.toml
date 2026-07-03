@@ -6,6 +6,12 @@
 app = 'czyja-dzialka'
 primary_region = 'ams'
 
+# SIGTERM → gunicorn graceful shutdown (default SIGINT triggers gunicorn's
+# *quick* shutdown). 30s (default 5s) lets the atexit email flush finish the
+# SMTP handshake before the machine is SIGKILLed on idle-stop.
+kill_signal = 'SIGTERM'
+kill_timeout = '30s'
+
 [build]
 
 [env]

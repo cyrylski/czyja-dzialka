@@ -254,3 +254,21 @@ Chronological record of significant architectural, product, and infrastructure d
 **Code:** `_xlsx_powierzenia_fallback()` in `geopoz_client.py`. Used in the `_pow` thread inside `get_parcel_info`.
 
 **Trade-off accepted:** XLSX entries are still as stale as the file date. The "Zaktualizowano" line in the panel footer continues to reflect that date, so users can judge.
+
+---
+
+## 2026-07-03 — Periodic email digest replaces shutdown-only flush (v1.6.4)
+
+**Decision:** Flush the in-memory analytics buffer to email on a timer (every 15 min while events are pending, immediately at 800 events) from a daemon thread, keeping the `atexit` flush only as a shutdown backstop. Make configuration state loud at startup, surface SMTP errors through a token-gated `/api/log_status` diagnostics endpoint, and set `kill_signal = 'SIGTERM'` / `kill_timeout = '30s'` in `fly.toml`.
+
+**Problem:** No digest email ever arrived, so there was zero visibility into app usage. The v1.3.0 design assumed Fly.io idle-stop gives the process a clean, unhurried exit ("gunicorn lets the worker exit cleanly, `atexit` fires"). In reality, with no `kill_signal`/`kill_timeout` in `fly.toml`, Fly sends **SIGINT** (which gunicorn treats as *quick* shutdown, not graceful) and **SIGKILLs the VM after 5 s** — while the flush's own SMTP timeout is 10 s and the full Gmail handshake (DNS + TCP + STARTTLS + AUTH + DATA) must also fit in that window on a 256 MB shared-CPU machine. The flush lost that race on every spindown. Compounding it, every failure was invisible: missing `LOG_EMAIL_*` secrets (the app migrated Render → Fly on 2026-04-27; secrets do not migrate) silently no-op the flush, and SMTP exceptions were logged at WARNING to a machine already dying. A crash or OOM (SIGKILL) also loses the entire buffer with shutdown-only flushing, by design.
+
+**Rationale:** Delivery must not depend on the single most fragile moment of the machine lifecycle. A periodic flush bounds data-at-risk to one interval, works regardless of how the machine dies, and — throttled to at most 4 sends/hour, only when events exist — stays far below Gmail's ~500/day limit that motivated removing per-lookup sends in v1.3.0. Failed sends re-queue the events at the front of the buffer for the next cycle. The diagnostics endpoint exists because the pipeline had **no observable state at all**: `GET /api/log_status` (with `LOG_STATUS_TOKEN`) reports config/pending/last-error, `POST` forces a flush with a synthetic test event so end-to-end delivery is verifiable in seconds instead of waiting for organic traffic and spindown.
+
+**Alternatives not taken:**
+- External store (Supabase per `ANALYTICS_PLAN.md`): still the right long-term answer, but a bigger dependency; the email digest is the current contract and can be made reliable cheaply.
+- Fly.io metrics / log shipper (`fly logs` → external sink): observability of stdout already exists via `flyctl logs`; the requirement here is push notification of usage without running extra infrastructure.
+- Per-event send: rejected in v1.3.0 for quota/DoS reasons; unchanged.
+- Only fixing `fly.toml` (SIGTERM + 30 s): necessary but not sufficient — still loses the buffer on crash/OOM and still silent when misconfigured.
+
+**Operational note:** if no email arrives after deploy, `flyctl logs` now shows either `email digest armed -> …` or `email digest DISABLED — missing env vars: …` at boot; `fly secrets list` should show `LOG_EMAIL_FROM`, `LOG_EMAIL_PASSWORD` (a Gmail **app password** — regular passwords are rejected by Gmail SMTP), `LOG_EMAIL_TO`, and optionally `LOG_STATUS_TOKEN`. `POST /api/log_status` with the token returns the exact SMTP error if sending fails.

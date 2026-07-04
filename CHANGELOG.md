@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.6.5 — 2026-07-05
+
+### Fixed
+- **Rate limiter counted all visitors as one client**, so the aggregate traffic of the entire app shared a single `600/day` bucket on `/dzialka` — once the public burned through it, every visitor got 429 for up to 24 h (observed in production: the whole budget consumed in ~1.2 h, app dark for everyone). Root cause: Fly routes requests through two proxy hops (regional edge node → worker), so the last `X-Forwarded-For` entry — what `ProxyFix(x_for=1)` writes into `remote_addr` — is Fly's shared edge node, not the visitor. Confirmed empirically: requests from distinct IPv4 and IPv6 client addresses returned the same `x-ratelimit-reset` and shared one exhausted bucket. The limiter now keys on `Fly-Client-IP`, which fly-proxy sets authoritatively on every request (falling back to `remote_addr` in local dev).
+- Analytics digests recorded the same masked edge-node IP for every visitor (`_log_dzialka` read `request.remote_addr` directly); now uses the same `Fly-Client-IP` resolution, so per-visitor patterns in the digest are meaningful again.
+
+---
+
 ## v1.6.4 — 2026-07-03
 
 ### Fixed

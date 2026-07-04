@@ -18,8 +18,8 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 import geopoz_client
 import parcel_analyzer
 
-APP_VERSION = 'v1.6.4'
-APP_UPDATE_DATE = '2026-07-03'
+APP_VERSION = 'v1.6.5'
+APP_UPDATE_DATE = '2026-07-05'
 
 app = Flask(__name__, static_folder='.')
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
@@ -30,9 +30,18 @@ logging.basicConfig(
 )
 _analytics = logging.getLogger('analytics')
 
+def _client_ip():
+    # Fly routes every request through two proxy hops (regional edge node →
+    # worker), so the last X-Forwarded-For entry — what ProxyFix x_for=1
+    # yields as remote_addr — is Fly's shared edge node, not the visitor.
+    # Fly-Client-IP is set authoritatively by fly-proxy and cannot be spoofed
+    # through it; absent only in local dev, where remote_addr is correct.
+    return request.headers.get('Fly-Client-IP') or get_remote_address()
+
+
 limiter = Limiter(
     app=app,
-    key_func=get_remote_address,
+    key_func=_client_ip,
     default_limits=['200/minute', '5000/day'],
     headers_enabled=True,
 )
@@ -79,7 +88,7 @@ def _is_same_origin():
 
 
 def _log_dzialka(ozn_dz, source='map'):
-    ip = _mask_ip(request.remote_addr or '')
+    ip = _mask_ip(_client_ip() or '')
     ua = request.headers.get('User-Agent', '')[:200]
     ts = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')
     _analytics.info('lookup ozn=%s source=%s ip=%s ua=%r', ozn_dz, source, ip, ua)

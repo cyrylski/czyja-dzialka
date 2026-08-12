@@ -233,3 +233,101 @@ On parcel tap, animate the selection circle smoothly transitioning into the parc
 ### Shareable parcel URLs — open question
 
 Rozważam ukrywanie przycisku zamiast disabled dla działek bez zarządcy — odkładam decyzję na później.
+
+---
+
+## Known accuracy debt (2026-08-12)
+
+Found while investigating a reported misattribution on `20/28/34/3` (app says ZDM, WGN
+confirmed in writing to a resident that the parcel is theirs). None of these are fixed yet.
+
+### TODO — `dr` alone is not proof of a public road (root cause of the report)
+
+`_is_roads()` (`parcel_analyzer.py:51-52`) treats `KLASOUZYTKI_EGIB` containing `dr` as
+sufficient to fire branch 4 → hard-coded `Zarząd Dróg Miejskich`. EGIB użytek `dr` covers
+every road-occupied surface — internal estate roads, service drives, parking bays — while
+ZDM's mandate under Art. 19 ust. 5 UoDP attaches only to *drogi publiczne*. The cadastre
+cannot distinguish the two: `GetFeatureInfo` on the queryable `uzytki` layer returns a bare
+`OZNACZENIE = dr`.
+
+`20/28/34/3` is a 318 m² parking strip off ul. Piątkowska with `ADRES_DZIALKI = '-'`,
+`WLAD = "Gospodarowanie zasobem…"`, and no `Powierzenia` / `Trwały zarząd` / XLSX record.
+It should reach `CITY_ZASOB` → Wydział Gospodarki Nieruchomościami.
+
+A random sample of 560 distinct Poznań parcels found **35** matching
+`WLASC=Miasto Poznań` + `WLAD` contains `Gospodarowanie zasobem` + `dr` in `KLASOUZYTKI`
+(≈6% of all parcels); **26 of them resolve to `zdm_city` in production with no override**.
+But a blunt "`WLAD` beats `dr`" fix is wrong — al. Niepodległości (`51/02/60/1`),
+ul. Wielka (`51/16/92`), ul. 23 Lutego (`51/13/26`) and rondo Piątkowo (`53/04/701/1`)
+carry the same `WLAD` string and are genuine ZDM roads. Known limitation #2 in
+`ZARZADCA-LOGIC.md` (stale `WLAD` on road parcels) is real for some parcels but not
+universal, and was never verified before the `dr` trigger was added.
+
+**Discriminator to build on:** parcels forming part of a public road corridor get that
+street assigned in `ADRES_DZIALKI`; every clearly-suspect parcel in the sample has `'-'`.
+ZDM publishes an authoritative street register at `https://zdm.poznan.pl/ulice-zdm`
+(~2 584 rows, 87 pages) with `Kategoria` ∈ {krajowa, wojewódzka, gminna, powiatowa,
+**wewnętrzna**} and `Zarządzanie przez ZDM` ∈ {Tak, Nie} — exactly the two facts EGIB
+cannot supply. Both access paths verified working:
+
+- pagination — `GET /ulice-zdm/attr/ulice-zdm/StreetsName_page/<n>`
+- name search — `POST /ulice-zdm` with `StreetsName[street_name]=<name>`
+
+Companion PDFs on the same page: `spis_drog_publicznych_w_administracji_zdm_*.pdf`,
+`spis_drog_wewnetrznych_*.pdf`, `wykaz_nieruchomosci_miejskich_powierzonych_w_administrowanie_zdm_*.pdf`.
+
+Suggested shape: replace the boolean with a `PUBLIC` / `INTERNAL` / `UNKNOWN` classifier;
+only `PUBLIC` fires the ZDM branches, `UNKNOWN` falls through to the ownership branches
+with a caveat note. Scraper should slot into the planned `refresh_data.py` above.
+
+### TODO — mixed-`klasouzytki` parcels labelled wholesale
+
+`11/50/1/87` (`B,Bp,Ls,LsVI,N,RVI,Ws,dr,ŁVI`) and `50/17/4/2` (29 ha,
+`Ls,LsVI,N,PsVI,Ws,dr`) are mostly green land with a road sliver, yet a single `dr` code
+labels the whole parcel. A proper fix needs per-contour geometry from the queryable
+`uzytki` layer rather than the flattened code list.
+
+### TODO — `_fetch_klasouzytki` fails silently
+
+`geopoz_client.py:385-395` swallows every exception and returns `''` on a 5 s timeout,
+which flips `is_roads` off and reroutes genuine road parcels to WGN with no signal. Its
+`<th>`/`<td>` index pairing (`:387-392`) also misaligns if the response ever carries more
+than one feature.
+
+### TODO — the date users see is the app release date, not the data date
+
+`analyze_parcel` returns `baza_data` / `baza_liczba` (`parcel_analyzer.py:134-135`), but
+`index.html:664-665` renders `d.app_update_date` from `/api/version`. Users see
+`2026-07-05` while `powierzenia` is from `2026-04-20` and `trwaly-zarzad` from
+`2026-04-27`. `ZARZADCA-LOGIC.md:204-205` still claims the XLSX date is displayed.
+
+### TODO — `confidence` is never rendered
+
+Every `ParcelScenario` field reaches the client, but `inferred` vs `confirmed` is invisible
+in the UI, so a land-use guess looks identical to a registry-confirmed answer.
+
+### TODO — `_TRWALY_ZARZAD` is dead data
+
+Loaded at `geopoz_client.py:171-197` and never read; only `_TRWALY_ZARZAD_META` is exposed
+(`:680-682`). Every `tz_entries` value comes from the live WMS, yet the copy at
+`parcel_analyzer.py:162` tells the user "rejestr WGN". Either wire the CSV in as a fallback
+(as the XLSX already is for powierzenia) or delete it.
+
+### TODO — deeplink path never verifies parcel identity
+
+`get_parcel_info` takes `features[0]['properties']` (`geopoz_client.py:440-444`) without
+asserting the returned `OZN_DZ` equals the requested one, so a boundary-adjacent sample
+point can show a neighbour's `WLASC` / `WLAD` under the requested parcel number. The
+v1.6.3 interior-point fix reduces but does not remove this.
+
+### TODO — management lookups fail open
+
+`geopoz_client.py:299-301` and `:342-344` return empty on any error, so an upstream outage
+silently downgrades `confirmed` parcels to inferred ZDM/WGN with no user-visible warning.
+
+### TODO — `ZARZADCA-LOGIC.md` is stale
+
+It documents a `buildCard()` in `index.html` that no longer exists (the tree moved into
+`parcel_analyzer.py`), and its "Files to modify" table (`:258-266`) points at the wrong
+files. `LOGIC_TREE.md` and `panel-scenarios.md` branch 9 describe an orange hero with
+`showWlasc=false`, while the code sets `show_wlasc=True` and `manager_name=None`.
